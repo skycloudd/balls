@@ -75,44 +75,6 @@ pub enum Value {
     Bool(bool),
 }
 
-impl Value {
-    pub fn add(&self, other: &Self) -> Self {
-        match (self, other) {
-            (Self::Int(a), Self::Int(b)) => Self::Int(a + b),
-            (Self::Float(a), Self::Float(b)) => Self::Float(a + b),
-
-            _ => panic!("cannot add {:?} and {:?}", self, other),
-        }
-    }
-
-    pub fn sub(&self, other: &Self) -> Self {
-        match (self, other) {
-            (Self::Int(a), Self::Int(b)) => Self::Int(a - b),
-            (Self::Float(a), Self::Float(b)) => Self::Float(a - b),
-
-            _ => panic!("cannot sub {:?} and {:?}", self, other),
-        }
-    }
-
-    pub fn mul(&self, other: &Self) -> Self {
-        match (self, other) {
-            (Self::Int(a), Self::Int(b)) => Self::Int(a * b),
-            (Self::Float(a), Self::Float(b)) => Self::Float(a * b),
-
-            _ => panic!("cannot mul {:?} and {:?}", self, other),
-        }
-    }
-
-    pub fn div(&self, other: &Self) -> Self {
-        match (self, other) {
-            (Self::Int(a), Self::Int(b)) => Self::Int(a / b),
-            (Self::Float(a), Self::Float(b)) => Self::Float(a / b),
-
-            _ => panic!("cannot div {:?} and {:?}", self, other),
-        }
-    }
-}
-
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -122,6 +84,3 @@ impl std::fmt::Display for Value {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}

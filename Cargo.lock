@@ -6,7 +6,7 @@ version = 3
 name = "balls_driver"
 version = "0.1.0"
 dependencies = [
- "bytecode",
+ "compiler",
  "vm",
 ]
 
@@ -17,6 +17,9 @@ version = "0.1.0"
 [[package]]
 name = "compiler"
 version = "0.1.0"
+dependencies = [
+ "bytecode",
+]
 
 [[package]]
 name = "vm"
