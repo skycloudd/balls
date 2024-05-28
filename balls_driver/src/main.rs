@@ -1,10 +1,19 @@
-use compiler::Compiler;
-use vm::Vm;
+use balls_compiler::Compiler;
+use balls_vm::Vm;
+use camino::Utf8PathBuf;
+use clap::Parser;
+
+#[derive(Parser)]
+struct Args {
+    path: Utf8PathBuf,
+}
 
 fn main() {
-    let bc = Compiler::compile();
+    let args = Args::parse();
 
-    let mut vm = Vm::<2>::new(bc);
+    let source_code = std::fs::read_to_string(&args.path).unwrap();
 
-    vm.run();
+    let bc = Compiler::new().compile(&source_code, &args.path);
+
+    Vm::<2>::new(bc).run();
 }

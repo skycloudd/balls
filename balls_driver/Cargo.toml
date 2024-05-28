@@ -4,5 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-compiler = { path = "../compiler" }
-vm = { path = "../vm" }
+balls_compiler = { path = "../balls_compiler" }
+balls_vm = { path = "../balls_vm" }
+camino = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+
+[lints]
+workspace = true

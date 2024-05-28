@@ -1,19 +1,24 @@
+use balls_span::Spanned;
+
 #[derive(Clone, Debug)]
 pub struct Bytecode {
-    code: Vec<Instruction>,
+    code: Vec<Spanned<Instruction>>,
     constants: Constants,
 }
 
 impl Bytecode {
-    pub fn new(code: Vec<Instruction>, constants: Constants) -> Self {
+    #[must_use]
+    pub fn new(code: Vec<Spanned<Instruction>>, constants: Constants) -> Self {
         Self { code, constants }
     }
 
-    pub fn code(&self) -> &[Instruction] {
+    #[must_use]
+    pub fn code(&self) -> &[Spanned<Instruction>] {
         &self.code
     }
 
-    pub fn constants(&self) -> &Constants {
+    #[must_use]
+    pub const fn constants(&self) -> &Constants {
         &self.constants
     }
 }
@@ -33,6 +38,7 @@ pub enum Instruction {
 pub struct Constants(Vec<Value>);
 
 impl Constants {
+    #[must_use]
     pub fn new(values: Vec<Value>) -> Self {
         Self(values)
     }
@@ -50,11 +56,13 @@ impl core::ops::Index<ConstId> for Constants {
 pub struct RegId(usize);
 
 impl RegId {
-    pub fn new(id: usize) -> Self {
+    #[must_use]
+    pub const fn new(id: usize) -> Self {
         Self(id)
     }
 
-    pub fn id(&self) -> usize {
+    #[must_use]
+    pub const fn id(&self) -> usize {
         self.0
     }
 }
@@ -63,10 +71,14 @@ impl RegId {
 pub struct ConstId(usize);
 
 impl ConstId {
-    pub fn new(id: usize) -> Self {
+    #[must_use]
+    pub const fn new(id: usize) -> Self {
         Self(id)
     }
 }
+
+pub type IntTy = i32;
+pub type FloatTy = f32;
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -75,12 +87,12 @@ pub enum Value {
     Bool(bool),
 }
 
-impl std::fmt::Display for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Value {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Self::Int(i) => write!(f, "{}", i),
-            Self::Float(fl) => write!(f, "{}", fl),
-            Self::Bool(b) => write!(f, "{}", b),
+            Self::Int(v) => write!(f, "{v}"),
+            Self::Float(v) => write!(f, "{v}"),
+            Self::Bool(v) => write!(f, "{v}"),
         }
     }
 }

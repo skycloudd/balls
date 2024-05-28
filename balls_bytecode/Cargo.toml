@@ -1,0 +1,10 @@
+[package]
+name = "balls_bytecode"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+balls_span = { path = "../balls_span" }
+
+[lints]
+workspace = true
