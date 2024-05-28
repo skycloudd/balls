@@ -1,0 +1,8 @@
+[package]
+name = "balls_driver"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytecode = { path = "../bytecode" }
+vm = { path = "../vm" }

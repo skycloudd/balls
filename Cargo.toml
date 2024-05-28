@@ -1,0 +1,3 @@
+[workspace]
+members = ["balls_driver", "bytecode", "compiler", "vm"]
+resolver = "2"
