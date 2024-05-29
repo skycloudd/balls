@@ -8,7 +8,9 @@ balls_span = { path = "../balls_span" }
 balls_bytecode = { path = "../balls_bytecode" }
 camino = { workspace = true }
 chumsky = { workspace = true }
+clap = { workspace = true }
 codespan-reporting = { workspace = true }
+ptree = { workspace = true }
 
 [lints]
 workspace = true

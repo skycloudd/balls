@@ -1,4 +1,4 @@
-use balls_compiler::Compiler;
+use balls_compiler::{Compiler, Print};
 use balls_vm::Vm;
 use camino::Utf8PathBuf;
 use clap::Parser;
@@ -6,6 +6,9 @@ use clap::Parser;
 #[derive(Parser)]
 struct Args {
     path: Utf8PathBuf,
+
+    #[clap(long)]
+    print: Option<Print>,
 }
 
 fn main() {
@@ -13,7 +16,7 @@ fn main() {
 
     let source_code = std::fs::read_to_string(&args.path).unwrap();
 
-    let bc = match Compiler::new().compile(&source_code, &args.path) {
+    let bc = match Compiler::new(args.print).compile(&source_code, &args.path) {
         (Some(bc), diagnostics) => {
             assert!(diagnostics.errors().is_empty());
 

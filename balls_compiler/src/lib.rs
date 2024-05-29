@@ -2,8 +2,10 @@ use balls_bytecode::Bytecode;
 use balls_span::Ctx;
 use camino::Utf8Path;
 use chumsky::prelude::*;
+use clap::{builder::PossibleValue, ValueEnum};
 use codespan_reporting::files::SimpleFiles;
 use diagnostics::Diagnostics;
+use ptree::print_tree;
 
 mod diagnostics;
 mod lexer;
@@ -12,13 +14,15 @@ pub mod span;
 #[derive(Debug)]
 pub struct Compiler<'a> {
     files: SimpleFiles<&'a Utf8Path, &'static str>,
+    print: Option<Print>,
 }
 
 impl<'a> Compiler<'a> {
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(print: Option<Print>) -> Self {
         Self {
             files: SimpleFiles::new(),
+            print,
         }
     }
 
@@ -64,12 +68,27 @@ impl<'a> Compiler<'a> {
             return (None, diagnostics);
         }
 
-        todo!("{:#?}", tokens.unwrap());
+        if self.print == Some(Print::Tokens) {
+            print_tree(&tokens.unwrap()).unwrap();
+        }
+
+        todo!()
     }
 }
 
-impl Default for Compiler<'_> {
-    fn default() -> Self {
-        Self::new()
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Print {
+    Tokens,
+}
+
+impl ValueEnum for Print {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[Self::Tokens]
+    }
+
+    fn to_possible_value(&self) -> Option<PossibleValue> {
+        match self {
+            Self::Tokens => Some(PossibleValue::new("tokens")),
+        }
     }
 }
