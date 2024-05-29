@@ -1,9 +1,9 @@
 use chumsky::span::{SimpleSpan, Span as _};
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Ctx(pub usize);
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug)]
 pub struct Span(SimpleSpan<usize, Ctx>);
 
 impl Span {
@@ -45,7 +45,7 @@ impl chumsky::span::Span for Span {
     }
 }
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug)]
 pub struct Spanned<T>(pub T, pub Span);
 
 impl<T> Spanned<T> {

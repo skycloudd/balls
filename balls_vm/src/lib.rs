@@ -1,6 +1,7 @@
-use balls_bytecode::{Bytecode, Instruction, RegId, Value};
+use balls_bytecode::{BinaryOp, Bytecode, Instruction, RegId, Value};
 use core::ops::{Index, IndexMut};
 
+#[derive(Debug)]
 pub struct Vm<const REGS: usize> {
     bytecode: Bytecode,
     registers: Registers<REGS>,
@@ -26,8 +27,8 @@ impl<const REGS: usize> Vm<REGS> {
         while self.ip < self.bytecode.code().len() {
             match self.execute() {
                 Ok(()) => {}
-                Err(e) => {
-                    eprintln!("error: {e}");
+                Err(err) => {
+                    eprintln!("error: {err}");
                     break;
                 }
             }
@@ -37,36 +38,25 @@ impl<const REGS: usize> Vm<REGS> {
     fn execute(&mut self) -> Result<(), &'static str> {
         let instruction = &self.bytecode.code()[self.ip];
 
-        match instruction.0 {
+        match &instruction.0 {
             Instruction::LoadConstant { constant, reg } => {
-                self.registers[reg] = Some(self.bytecode.constants()[constant].clone());
+                self.registers[*reg] = Some(self.bytecode.constants()[*constant]);
             }
-            Instruction::Add { out, a, b } => {
-                let a = self.reg(a);
-                let b = self.reg(b);
+            Instruction::Binary { op, out, lhs, rhs } => {
+                let lhs = self.reg(*lhs);
+                let rhs = self.reg(*rhs);
 
-                self.registers[out] = Some(a.add(b));
-            }
-            Instruction::Sub { out, a, b } => {
-                let a = self.reg(a);
-                let b = self.reg(b);
+                let result = match op {
+                    BinaryOp::Add => lhs.add(rhs),
+                    BinaryOp::Sub => lhs.sub(rhs),
+                    BinaryOp::Mul => lhs.mul(rhs),
+                    BinaryOp::Div => lhs.div(rhs)?,
+                };
 
-                self.registers[out] = Some(a.sub(b));
-            }
-            Instruction::Mul { out, a, b } => {
-                let a = self.reg(a);
-                let b = self.reg(b);
-
-                self.registers[out] = Some(a.mul(b));
-            }
-            Instruction::Div { out, a, b } => {
-                let a = self.reg(a);
-                let b = self.reg(b);
-
-                self.registers[out] = Some(a.div(b)?);
+                self.registers[*out] = Some(result);
             }
             Instruction::Print { reg } => {
-                let value = self.reg(reg);
+                let value = self.reg(*reg);
 
                 println!("{value}");
             }
@@ -82,6 +72,7 @@ impl<const REGS: usize> Vm<REGS> {
     }
 }
 
+#[derive(Debug)]
 struct Registers<const REGS: usize>([Option<Value>; REGS]);
 
 impl<const REGS: usize> Registers<REGS> {
@@ -128,8 +119,8 @@ trait Arithmetic {
 impl Arithmetic for Value {
     fn add(&self, other: &Self) -> Self {
         match (self, other) {
-            (Self::Int(a), Self::Int(b)) => Self::Int(a + b),
-            (Self::Float(a), Self::Float(b)) => Self::Float(a + b),
+            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(lhs + rhs),
+            (Self::Float(lhs), Self::Float(rhs)) => Self::Float(lhs + rhs),
 
             _ => panic!("cannot add {self:?} and {other:?}"),
         }
@@ -137,8 +128,8 @@ impl Arithmetic for Value {
 
     fn sub(&self, other: &Self) -> Self {
         match (self, other) {
-            (Self::Int(a), Self::Int(b)) => Self::Int(a - b),
-            (Self::Float(a), Self::Float(b)) => Self::Float(a - b),
+            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(lhs - rhs),
+            (Self::Float(lhs), Self::Float(rhs)) => Self::Float(lhs - rhs),
 
             _ => panic!("cannot sub {self:?} and {other:?}"),
         }
@@ -146,8 +137,8 @@ impl Arithmetic for Value {
 
     fn mul(&self, other: &Self) -> Self {
         match (self, other) {
-            (Self::Int(a), Self::Int(b)) => Self::Int(a * b),
-            (Self::Float(a), Self::Float(b)) => Self::Float(a * b),
+            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(lhs * rhs),
+            (Self::Float(lhs), Self::Float(rhs)) => Self::Float(lhs * rhs),
 
             _ => panic!("cannot mul {self:?} and {other:?}"),
         }
@@ -155,18 +146,18 @@ impl Arithmetic for Value {
 
     fn div(&self, other: &Self) -> Result<Self, &'static str> {
         match (self, other) {
-            (Self::Int(a), Self::Int(b)) => {
-                if *b != 0 {
-                    Ok(Self::Int(a / b))
+            (Self::Int(lhs), Self::Int(rhs)) => {
+                if *rhs != 0 {
+                    Ok(Self::Int(lhs / rhs))
                 } else {
                     Err("cannot divide by zero")
                 }
             }
-            (Self::Float(a), Self::Float(b)) => {
-                if *b == 0.0 {
+            (Self::Float(lhs), Self::Float(rhs)) => {
+                if *rhs == 0.0 {
                     Err("cannot divide by zero")
                 } else {
-                    Ok(Self::Float(a / b))
+                    Ok(Self::Float(lhs / rhs))
                 }
             }
 

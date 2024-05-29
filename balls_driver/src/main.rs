@@ -13,7 +13,24 @@ fn main() {
 
     let source_code = std::fs::read_to_string(&args.path).unwrap();
 
-    let bc = Compiler::new().compile(&source_code, &args.path);
+    let bc = match Compiler::new().compile(&source_code, &args.path) {
+        (Some(bc), diagnostics) => {
+            assert!(diagnostics.errors().is_empty());
+
+            for warning in diagnostics.warnings() {
+                eprintln!("{warning:?}");
+            }
+
+            bc
+        }
+        (None, diagnostics) => {
+            for error in diagnostics.errors() {
+                eprintln!("{error:?}");
+            }
+
+            return;
+        }
+    };
 
     Vm::<2>::new(bc).run();
 }

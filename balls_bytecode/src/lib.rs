@@ -1,6 +1,6 @@
 use balls_span::Spanned;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Bytecode {
     code: Vec<Spanned<Instruction>>,
     constants: Constants,
@@ -23,18 +23,32 @@ impl Bytecode {
     }
 }
 
-#[derive(Clone, Debug)]
-#[repr(u8)]
+#[derive(Clone, Copy, Debug)]
 pub enum Instruction {
-    LoadConstant { constant: ConstId, reg: RegId },
-    Add { out: RegId, a: RegId, b: RegId },
-    Sub { out: RegId, a: RegId, b: RegId },
-    Mul { out: RegId, a: RegId, b: RegId },
-    Div { out: RegId, a: RegId, b: RegId },
-    Print { reg: RegId },
+    LoadConstant {
+        constant: ConstId,
+        reg: RegId,
+    },
+    Binary {
+        op: BinaryOp,
+        out: RegId,
+        lhs: RegId,
+        rhs: RegId,
+    },
+    Print {
+        reg: RegId,
+    },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
+pub enum BinaryOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+}
+
+#[derive(Debug)]
 pub struct Constants(Vec<Value>);
 
 impl Constants {
@@ -80,7 +94,7 @@ impl ConstId {
 pub type IntTy = i32;
 pub type FloatTy = f32;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Value {
     Int(i32),
     Float(f32),
