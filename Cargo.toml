@@ -15,12 +15,11 @@ clap = "4.5.4"
 codespan-reporting = "0.11.1"
 
 [workspace.lints.rust]
-unsafe_op_in_unsafe_fn = "warn"
+unsafe_code = "deny"
 
 [workspace.lints.clippy]
 pedantic = "warn"
 nursery = "warn"
-multiple_unsafe_ops_per_block = "warn"
 alloc_instead_of_core = "warn"
 std_instead_of_core = "warn"
 std_instead_of_alloc = "warn"
