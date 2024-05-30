@@ -81,6 +81,9 @@ pub fn lexer(
 
         let parenthesised = tokens
             .delimited_by(just('('), just(')'))
+            .recover_with(via_parser(nested_delimiters('(', ')', [], |span| {
+                Tokens(vec![Spanned(Token::Error, span)])
+            })))
             .map(Token::Parentheses)
             .boxed();
 
@@ -88,7 +91,6 @@ pub fn lexer(
             .map_with(|tok, err| Spanned(tok, err.span()))
             .padded_by(comment.clone().repeated())
             .padded()
-            // .recover_with(skip_then_retry_until(any().ignored(), end()))
             .boxed();
 
         token.repeated().collect().padded().map(Tokens).boxed()

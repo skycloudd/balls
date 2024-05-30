@@ -9,6 +9,7 @@ pub struct Tokens(pub Vec<Spanned<Token>>);
 
 #[derive(Clone, Debug)]
 pub enum Token {
+    Error,
     Simple(Simple),
     Parentheses(Tokens),
 }
@@ -74,6 +75,9 @@ impl TreeItem for WithSpan<Token> {
         style: &ptree::Style,
     ) -> std::io::Result<()> {
         match &self.0 {
+            Token::Error => {
+                write!(f, "{} ", style.paint("Error"))?;
+            }
             Token::Simple(s) => {
                 write!(f, "{} ", style.paint(s))?;
             }
@@ -91,7 +95,7 @@ impl TreeItem for WithSpan<Token> {
 
     fn children(&self) -> Cow<[Self::Child]> {
         match &self.0 {
-            Token::Simple(_) => Cow::default(),
+            Token::Error | Token::Simple(_) => Cow::default(),
             Token::Parentheses(tokens) => Cow::Owned(
                 tokens
                     .0

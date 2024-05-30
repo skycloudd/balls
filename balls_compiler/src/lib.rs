@@ -49,7 +49,6 @@ impl<'a, 'file> Compiler<'a, 'file> {
 
         let file_ctx = Ctx(file_id);
 
-        // let mut errors = Vec::new();
         let mut diagnostics = Diagnostics::new();
 
         let (tokens, lex_errors) = lexer::lexer()
@@ -63,12 +62,12 @@ impl<'a, 'file> Compiler<'a, 'file> {
                 .flat_map(|err| diagnostics::error::convert(&err)),
         );
 
-        if !diagnostics.errors().is_empty() {
-            return (None, diagnostics);
-        }
-
         if self.print == Some(Print::Tokens) {
             print_tree(&tokens.unwrap()).unwrap();
+        }
+
+        if !diagnostics.errors().is_empty() {
+            return (None, diagnostics);
         }
 
         todo!()
