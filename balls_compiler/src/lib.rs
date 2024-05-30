@@ -1,5 +1,5 @@
 use balls_bytecode::Bytecode;
-use balls_span::Ctx;
+use balls_span::{Ctx, Span};
 use camino::Utf8Path;
 use chumsky::prelude::*;
 use clap::{builder::PossibleValue, ValueEnum};
@@ -9,6 +9,7 @@ use ptree::print_tree;
 
 pub mod diagnostics;
 mod lexer;
+mod parser;
 
 #[derive(Debug)]
 pub struct Compiler<'a, 'file> {
@@ -34,15 +35,7 @@ impl<'a, 'file> Compiler<'a, 'file> {
         &mut self,
         source_code: &str,
         filename: &'file Utf8Path,
-    ) -> (Option<Bytecode>, Diagnostics) {
-        self.run(source_code, filename)
-    }
-
-    fn run(
-        &mut self,
-        source_code: &str,
-        filename: &'file Utf8Path,
-    ) -> (Option<Bytecode>, Diagnostics) {
+    ) -> std::io::Result<(Option<Bytecode>, Diagnostics)> {
         let source_code: &'static str = Box::leak(source_code.into());
 
         let file_id = self.files.add(filename, source_code);
@@ -63,30 +56,70 @@ impl<'a, 'file> Compiler<'a, 'file> {
         );
 
         if self.print == Some(Print::Tokens) {
-            print_tree(&tokens.unwrap()).unwrap();
+            if let Some(tokens) = tokens.as_ref() {
+                print_tree(&tokens.clone())?;
+            } else {
+                println!("Unable to print tokens due to lexer errors");
+            }
+        }
+
+        let tokens = tokens.map(|tokens| {
+            let eof = tokens
+                .0
+                .last()
+                .map_or_else(|| Span::new(file_ctx, 0..0), |(_, span)| span.to_end());
+
+            let tokens = tokens.0.into_iter().collect::<Vec<_>>();
+
+            (tokens, eof)
+        });
+
+        let (ast, parse_errors) = tokens
+            .as_ref()
+            .map_or_else(Default::default, |(tokens, eof)| {
+                parser::parser()
+                    .parse(tokens.spanned(*eof))
+                    .into_output_errors()
+            });
+
+        diagnostics.add_errors(
+            parse_errors
+                .into_iter()
+                .map(|err| err.map_token(|token| token.to_string()))
+                .flat_map(|err| diagnostics::error::convert(&err)),
+        );
+
+        if self.print == Some(Print::Ast) {
+            if let Some(ast) = ast {
+                println!("{ast:#?}");
+            } else {
+                println!("Unable to print AST due to parser errors");
+            }
         }
 
         if !diagnostics.errors().is_empty() {
-            return (None, diagnostics);
+            return Ok((None, diagnostics));
         }
 
-        todo!()
+        std::process::exit(1);
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Print {
     Tokens,
+    Ast,
 }
 
 impl ValueEnum for Print {
     fn value_variants<'a>() -> &'a [Self] {
-        &[Self::Tokens]
+        &[Self::Tokens, Self::Ast]
     }
 
     fn to_possible_value(&self) -> Option<PossibleValue> {
         match self {
             Self::Tokens => Some(PossibleValue::new("tokens")),
+            Self::Ast => Some(PossibleValue::new("ast")),
         }
     }
 }

@@ -1,12 +1,15 @@
-use balls_span::{Span, Spanned};
+use balls_span::Span;
 use chumsky::{input::WithContext, prelude::*};
 use token::{Kw, Punc, Simple, Token, Tokens};
 
-mod token;
+pub mod token;
 
-pub fn lexer(
-) -> impl Parser<'static, WithContext<Span, &'static str>, Tokens, extra::Err<Rich<'static, char, Span>>>
-{
+pub fn lexer() -> impl Parser<
+    'static,
+    WithContext<Span, &'static str>,
+    Tokens,
+    extra::Err<Rich<'static, char, Span, &'static str>>,
+> {
     recursive(|tokens| {
         let ident = text::ascii::ident().map(Simple::Ident).boxed();
 
@@ -53,20 +56,22 @@ pub fn lexer(
             // 2 char
             //
             just("::").to(Simple::Punc(Punc::DoubleColon)),
-            // comparison op
-            just("<=").to(Simple::Punc(Punc::LessThanEqual)),
-            just(">=").to(Simple::Punc(Punc::GreaterThanEqual)),
+            just("==").to(Simple::Punc(Punc::DoubleEquals)),
+            just("!=").to(Simple::Punc(Punc::NotEquals)),
             // 1 char
             //
             just("=").to(Simple::Punc(Punc::Equals)),
             just('.').to(Simple::Punc(Punc::Period)),
             just(',').to(Simple::Punc(Punc::Comma)),
+            just('!').to(Simple::Punc(Punc::Exclamation)),
             // arithmetic op
             just('+').to(Simple::Punc(Punc::Plus)),
             just('-').to(Simple::Punc(Punc::Minus)),
             just('*').to(Simple::Punc(Punc::Star)),
             just('/').to(Simple::Punc(Punc::Slash)),
             // comparison op
+            just("<=").to(Simple::Punc(Punc::LessThanEqual)),
+            just(">=").to(Simple::Punc(Punc::GreaterThanEqual)),
             just('<').to(Simple::Punc(Punc::LessThan)),
             just('>').to(Simple::Punc(Punc::GreaterThan)),
         ))
@@ -80,15 +85,30 @@ pub fn lexer(
         let simple = choice((keyword, bool, ident, float, integer, punctuation)).map(Token::Simple);
 
         let parenthesised = tokens
+            .clone()
             .delimited_by(just('('), just(')'))
-            .recover_with(via_parser(nested_delimiters('(', ')', [], |span| {
-                Tokens(vec![Spanned(Token::Error, span)])
-            })))
+            .recover_with(via_parser(nested_delimiters(
+                '(',
+                ')',
+                [('{', '}')],
+                |span| Tokens(vec![(Token::Error, span)]),
+            )))
             .map(Token::Parentheses)
             .boxed();
 
-        let token = choice((simple, parenthesised))
-            .map_with(|tok, err| Spanned(tok, err.span()))
+        let curly_braces = tokens
+            .delimited_by(just('{'), just('}'))
+            .recover_with(via_parser(nested_delimiters(
+                '{',
+                '}',
+                [('(', ')')],
+                |span| Tokens(vec![(Token::Error, span)]),
+            )))
+            .map(Token::CurlyBraces)
+            .boxed();
+
+        let token = choice((simple, parenthesised, curly_braces))
+            .map_with(|tok, err| (tok, err.span()))
             .padded_by(comment.clone().repeated())
             .padded()
             .boxed();

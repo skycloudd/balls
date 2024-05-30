@@ -1,20 +1,21 @@
 use balls_bytecode::{FloatTy, IntTy};
-use balls_span::Spanned;
-use chumsky::span::Span;
+use balls_span::Span;
+use chumsky::span::Span as _;
 use ptree::TreeItem;
 use std::borrow::Cow;
 
-#[derive(Clone, Debug)]
-pub struct Tokens(pub Vec<Spanned<Token>>);
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Tokens(pub Vec<(Token, Span)>);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     Error,
     Simple(Simple),
     Parentheses(Tokens),
+    CurlyBraces(Tokens),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Simple {
     Ident(&'static str),
     Integer(IntTy),
@@ -24,18 +25,21 @@ pub enum Simple {
     Punc(Punc),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Kw {
     Let,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Punc {
     DoubleColon,
+    DoubleEquals,
+    NotEquals,
 
     Equals,
     Period,
     Comma,
+    Exclamation,
 
     // arithmetic op
     Plus,
@@ -84,6 +88,9 @@ impl TreeItem for WithSpan<Token> {
             Token::Parentheses(_) => {
                 write!(f, "{} ", style.paint("(...)"))?;
             }
+            Token::CurlyBraces(_) => {
+                write!(f, "{} ", style.paint("{...}"))?;
+            }
         }
 
         write!(
@@ -96,7 +103,7 @@ impl TreeItem for WithSpan<Token> {
     fn children(&self) -> Cow<[Self::Child]> {
         match &self.0 {
             Token::Error | Token::Simple(_) => Cow::default(),
-            Token::Parentheses(tokens) => Cow::Owned(
+            Token::Parentheses(tokens) | Token::CurlyBraces(tokens) => Cow::Owned(
                 tokens
                     .0
                     .iter()
@@ -109,6 +116,17 @@ impl TreeItem for WithSpan<Token> {
 
 #[derive(Clone, Debug)]
 pub struct WithSpan<T>(T, balls_span::Span);
+
+impl core::fmt::Display for Token {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        match self {
+            Self::Error => write!(f, "Error"),
+            Self::Simple(v) => write!(f, "{v}"),
+            Self::Parentheses(tokens) => write!(f, "({tokens:?})"),
+            Self::CurlyBraces(tokens) => write!(f, "{{{tokens:?}}}"),
+        }
+    }
+}
 
 impl core::fmt::Display for Simple {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
@@ -135,9 +153,13 @@ impl core::fmt::Display for Punc {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
             Self::DoubleColon => write!(f, "::"),
+            Self::DoubleEquals => write!(f, "=="),
+            Self::NotEquals => write!(f, "!="),
+
             Self::Equals => write!(f, "="),
             Self::Period => write!(f, "."),
             Self::Comma => write!(f, ","),
+            Self::Exclamation => write!(f, "!"),
 
             Self::Plus => write!(f, "+"),
             Self::Minus => write!(f, "-"),

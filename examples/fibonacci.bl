@@ -2,5 +2,5 @@ let fib (n :: int) :: int =
     (n <= 1)
         .then_else(
             n,
-            fib(n - 1) + fib(n - 2)
+            { fib(n - 1) + fib(n - 2) }
         )

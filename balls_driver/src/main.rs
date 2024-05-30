@@ -21,14 +21,14 @@ struct Args {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
-    let source_code = std::fs::read_to_string(&args.path).unwrap();
+    let source_code = std::fs::read_to_string(&args.path)?;
 
     let writer = StandardStream::stderr(ColorChoice::Auto);
     let config = codespan_reporting::term::Config::default();
 
     let mut files = SimpleFiles::new();
 
-    let bc = match Compiler::new(&mut files, args.print).compile(&source_code, &args.path) {
+    let bc = match Compiler::new(&mut files, args.print).compile(&source_code, &args.path)? {
         (Some(bc), diagnostics) => {
             assert!(diagnostics.errors().is_empty());
 

@@ -25,9 +25,13 @@ impl Diag for Error {
                 found,
                 span: _,
             } => format!(
-                "Expected one of {}, found '{}'",
+                "Expected one of {}, found {}",
                 expected.join(", "),
-                found.as_deref().unwrap_or("nothing")
+                found
+                    .as_ref()
+                    .map(|found| format!("'{found}'"))
+                    .as_deref()
+                    .unwrap_or("end of input")
             ),
             Self::Custom { message, span: _ } => message.clone(),
         }

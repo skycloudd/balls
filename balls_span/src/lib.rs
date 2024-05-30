@@ -3,7 +3,7 @@ use chumsky::span::{SimpleSpan, Span as _};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Ctx(pub usize);
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Span(SimpleSpan<usize, Ctx>);
 
 impl Span {
@@ -15,11 +15,6 @@ impl Span {
     #[must_use]
     pub fn union(&self, other: &Self) -> Self {
         Self(self.0.union(other.0))
-    }
-
-    #[must_use]
-    pub fn end_span(&self) -> Self {
-        Self(self.0.to_end())
     }
 }
 
@@ -45,7 +40,7 @@ impl chumsky::span::Span for Span {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Spanned<T>(pub T, pub Span);
 
 impl<T> Spanned<T> {

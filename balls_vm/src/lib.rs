@@ -68,7 +68,9 @@ impl<const REGS: usize> Vm<REGS> {
     }
 
     fn reg(&self, reg: RegId) -> &Value {
-        self.registers[reg].as_ref().unwrap()
+        self.registers[reg]
+            .as_ref()
+            .expect("uninitialized register")
     }
 }
 
