@@ -7,23 +7,22 @@ use codespan_reporting::files::SimpleFiles;
 use diagnostics::Diagnostics;
 use ptree::print_tree;
 
-mod diagnostics;
+pub mod diagnostics;
 mod lexer;
-pub mod span;
 
 #[derive(Debug)]
-pub struct Compiler<'a> {
-    files: SimpleFiles<&'a Utf8Path, &'static str>,
+pub struct Compiler<'a, 'file> {
+    files: &'a mut SimpleFiles<&'file Utf8Path, &'static str>,
     print: Option<Print>,
 }
 
-impl<'a> Compiler<'a> {
+impl<'a, 'file> Compiler<'a, 'file> {
     #[must_use]
-    pub fn new(print: Option<Print>) -> Self {
-        Self {
-            files: SimpleFiles::new(),
-            print,
-        }
+    pub fn new(
+        files: &'a mut SimpleFiles<&'file Utf8Path, &'static str>,
+        print: Option<Print>,
+    ) -> Self {
+        Self { files, print }
     }
 
     /// Compiles the given source code into bytecode.
@@ -34,7 +33,7 @@ impl<'a> Compiler<'a> {
     pub fn compile(
         &mut self,
         source_code: &str,
-        filename: &'a Utf8Path,
+        filename: &'file Utf8Path,
     ) -> (Option<Bytecode>, Diagnostics) {
         self.run(source_code, filename)
     }
@@ -42,7 +41,7 @@ impl<'a> Compiler<'a> {
     fn run(
         &mut self,
         source_code: &str,
-        filename: &'a Utf8Path,
+        filename: &'file Utf8Path,
     ) -> (Option<Bytecode>, Diagnostics) {
         let source_code: &'static str = Box::leak(source_code.into());
 

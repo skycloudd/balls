@@ -1,7 +1,14 @@
-use balls_compiler::{Compiler, Print};
+use balls_compiler::{diagnostics::report, Compiler, Print};
 use balls_vm::Vm;
 use camino::Utf8PathBuf;
 use clap::Parser;
+use codespan_reporting::{
+    files::SimpleFiles,
+    term::{
+        self,
+        termcolor::{ColorChoice, StandardStream},
+    },
+};
 
 #[derive(Parser)]
 struct Args {
@@ -11,29 +18,42 @@ struct Args {
     print: Option<Print>,
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     let source_code = std::fs::read_to_string(&args.path).unwrap();
 
-    let bc = match Compiler::new(args.print).compile(&source_code, &args.path) {
+    let writer = StandardStream::stderr(ColorChoice::Auto);
+    let config = codespan_reporting::term::Config::default();
+
+    let mut files = SimpleFiles::new();
+
+    let bc = match Compiler::new(&mut files, args.print).compile(&source_code, &args.path) {
         (Some(bc), diagnostics) => {
             assert!(diagnostics.errors().is_empty());
 
             for warning in diagnostics.warnings() {
-                eprintln!("{warning:?}");
+                let diag = report(warning);
+
+                term::emit(&mut writer.lock(), &config, &files, &diag)?;
             }
 
             bc
         }
         (None, diagnostics) => {
+            assert!(!diagnostics.errors().is_empty());
+
             for error in diagnostics.errors() {
-                eprintln!("{error:?}");
+                let diag = report(error);
+
+                term::emit(&mut writer.lock(), &config, &files, &diag)?;
             }
 
-            return;
+            return Ok(());
         }
     };
 
     Vm::<2>::new(bc).run();
+
+    Ok(())
 }

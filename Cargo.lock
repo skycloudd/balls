@@ -106,6 +106,7 @@ dependencies = [
  "balls_vm",
  "camino",
  "clap",
+ "codespan-reporting",
 ]
 
 [[package]]
