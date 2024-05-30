@@ -91,7 +91,7 @@ impl<'a, 'file> Compiler<'a, 'file> {
 
         if self.print == Some(Print::Ast) {
             if let Some(ast) = ast {
-                println!("{ast:#?}");
+                println!("{ast:?}");
             } else {
                 println!("Unable to print AST due to parser errors");
             }
