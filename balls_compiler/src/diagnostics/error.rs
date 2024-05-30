@@ -25,7 +25,7 @@ impl Diag for Error {
                 found,
                 span: _,
             } => format!(
-                "Expected one of {}, found {}",
+                "Expected one of {}, found '{}'",
                 expected.join(", "),
                 found.as_deref().unwrap_or("nothing")
             ),
