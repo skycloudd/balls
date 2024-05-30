@@ -11,11 +11,6 @@ impl Span {
     pub fn new(context: Ctx, range: core::ops::Range<usize>) -> Self {
         Self(SimpleSpan::<usize, Ctx>::new(context, range))
     }
-
-    #[must_use]
-    pub fn union(&self, other: &Self) -> Self {
-        Self(self.0.union(other.0))
-    }
 }
 
 impl chumsky::span::Span for Span {

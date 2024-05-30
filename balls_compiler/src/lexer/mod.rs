@@ -2,6 +2,7 @@ use balls_span::Span;
 use chumsky::{input::WithContext, prelude::*};
 use token::{Kw, Punc, Simple, Token, Tokens};
 
+mod pretty;
 pub mod token;
 
 pub fn lexer() -> impl Parser<

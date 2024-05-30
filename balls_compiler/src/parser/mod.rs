@@ -138,7 +138,7 @@ fn expr_parser<'tok>() -> impl Parser<
 
         let postfix = atom
             .foldl(postfix_op.repeated(), |a, b| {
-                let span = a.1.union(&b.1);
+                let span = a.1.union(b.1);
 
                 Spanned(
                     Expr::Postfix {
@@ -159,7 +159,7 @@ fn expr_parser<'tok>() -> impl Parser<
         let unary = unary_op
             .repeated()
             .foldr(postfix, |op, expr| {
-                let span = op.1.union(&expr.1);
+                let span = op.1.union(expr.1);
 
                 Spanned(
                     Expr::Unary {
@@ -180,7 +180,7 @@ fn expr_parser<'tok>() -> impl Parser<
         let factor = unary
             .clone()
             .foldl(factor_op.then(unary).repeated(), |lhs, (op, rhs)| {
-                let span = lhs.1.union(&rhs.1);
+                let span = lhs.1.union(rhs.1);
 
                 Spanned(
                     Expr::Binary {
@@ -202,7 +202,7 @@ fn expr_parser<'tok>() -> impl Parser<
         let sum = factor
             .clone()
             .foldl(sum_op.then(factor).repeated(), |lhs, (op, rhs)| {
-                let span = lhs.1.union(&rhs.1);
+                let span = lhs.1.union(rhs.1);
 
                 Spanned(
                     Expr::Binary {
@@ -228,7 +228,7 @@ fn expr_parser<'tok>() -> impl Parser<
         let relational = sum
             .clone()
             .foldl(relational_op.then(sum).repeated(), |lhs, (op, rhs)| {
-                let span = lhs.1.union(&rhs.1);
+                let span = lhs.1.union(rhs.1);
 
                 Spanned(
                     Expr::Binary {
@@ -250,7 +250,7 @@ fn expr_parser<'tok>() -> impl Parser<
         let equality = relational
             .clone()
             .foldl(equality_op.then(relational).repeated(), |lhs, (op, rhs)| {
-                let span = lhs.1.union(&rhs.1);
+                let span = lhs.1.union(rhs.1);
 
                 Spanned(
                     Expr::Binary {

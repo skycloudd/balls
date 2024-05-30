@@ -30,7 +30,7 @@ impl<'a, 'file> Compiler<'a, 'file> {
     ///
     /// # Errors
     ///
-    /// Returns a list of [`Error`]s if the program fails to compile.
+    /// Returns an error on I/O errors.
     pub fn compile(
         &mut self,
         source_code: &str,
