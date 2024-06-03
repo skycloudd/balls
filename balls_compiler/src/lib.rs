@@ -10,6 +10,8 @@ use ptree::print_tree;
 pub mod diagnostics;
 mod lexer;
 mod parser;
+mod scopes;
+mod typecheck;
 
 #[derive(Debug)]
 pub struct Compiler<'a, 'file> {
@@ -90,10 +92,28 @@ impl<'a, 'file> Compiler<'a, 'file> {
         );
 
         if self.print == Some(Print::Ast) {
-            if let Some(ast) = ast {
-                println!("{ast:?}");
+            if let Some(ast) = &ast {
+                print_tree(&ast.0)?;
             } else {
                 println!("Unable to print AST due to parser errors");
+            }
+        }
+
+        let temporary_todo_remove_this_is_fibonacci_example = *filename == "examples/fibonacci.bl";
+
+        let typed_ast = ast.map(|ast| {
+            typecheck::typecheck(
+                ast,
+                &mut diagnostics,
+                temporary_todo_remove_this_is_fibonacci_example,
+            )
+        });
+
+        if self.print == Some(Print::TypedAst) {
+            if let Some(typed_ast) = &typed_ast {
+                println!("{typed_ast:?}");
+            } else {
+                println!("Unable to print typed AST due to type errors");
             }
         }
 
@@ -109,17 +129,19 @@ impl<'a, 'file> Compiler<'a, 'file> {
 pub enum Print {
     Tokens,
     Ast,
+    TypedAst,
 }
 
 impl ValueEnum for Print {
     fn value_variants<'a>() -> &'a [Self] {
-        &[Self::Tokens, Self::Ast]
+        &[Self::Tokens, Self::Ast, Self::TypedAst]
     }
 
     fn to_possible_value(&self) -> Option<PossibleValue> {
         match self {
             Self::Tokens => Some(PossibleValue::new("tokens")),
             Self::Ast => Some(PossibleValue::new("ast")),
+            Self::TypedAst => Some(PossibleValue::new("typed-ast")),
         }
     }
 }

@@ -4,6 +4,7 @@ use balls_span::{Span, Spanned};
 use chumsky::{input::SpannedInput, prelude::*};
 
 pub mod ast;
+mod pretty;
 
 pub fn parser<'tok>() -> impl Parser<
     'tok,
@@ -26,34 +27,34 @@ fn function_parser<'tok>() -> impl Parser<
 > {
     let name = ident_parser();
 
-    let arg = ident_parser()
+    let parameter = ident_parser()
         .then_ignore(just(Token::Simple(token::Simple::Punc(Punc::DoubleColon))))
         .then(ty_parser())
         .map_with(|(name, ty), e| Spanned(Arg { name, ty }, e.span()))
         .boxed();
 
-    let args = arg
+    let parameters = parameter
         .separated_by(just(Token::Simple(token::Simple::Punc(Punc::Comma))))
         .allow_trailing()
         .collect()
         .nested_in(select_ref! {
             Token::Parentheses(tokens) = e => tokens.0.as_slice().spanned(Span::to_end(&e.span()))
         })
-        .map_with(|args, e| Spanned(args, e.span()))
+        .map_with(|parameters, e| Spanned(parameters, e.span()))
         .boxed();
 
     just(Token::Simple(token::Simple::Kw(Kw::Let)))
         .ignore_then(name)
-        .then(args)
+        .then(parameters)
         .then_ignore(just(Token::Simple(token::Simple::Punc(Punc::DoubleColon))))
         .then(ty_parser())
         .then_ignore(just(Token::Simple(token::Simple::Punc(Punc::Equals))))
         .then(expr_parser())
-        .map_with(|(((name, args), return_ty), body), e| {
+        .map_with(|(((name, parameters), return_ty), body), e| {
             Spanned(
                 Function {
                     name,
-                    args,
+                    parameters,
                     return_ty,
                     body,
                 },

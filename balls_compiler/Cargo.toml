@@ -10,6 +10,7 @@ camino = { workspace = true }
 chumsky = { workspace = true }
 clap = { workspace = true }
 codespan-reporting = { workspace = true }
+levenshtein = { workspace = true }
 ptree = { workspace = true }
 
 [lints]

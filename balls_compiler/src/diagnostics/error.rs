@@ -1,5 +1,9 @@
 use super::{Diag, ErrorSpan};
-use balls_span::Span;
+use crate::{
+    parser::ast::{BinaryOp, UnaryOp},
+    typecheck,
+};
+use balls_span::{Span, Spanned};
 use chumsky::error::{Rich, RichReason};
 use codespan_reporting::diagnostic::Severity;
 
@@ -13,6 +17,28 @@ pub enum Error {
     Custom {
         message: String,
         span: Span,
+    },
+    UndefinedName {
+        ident: &'static str,
+        span: Span,
+    },
+    UnknownType {
+        span: Span,
+    },
+    CannotBinaryOp {
+        lhs_ty: Spanned<typecheck::types::Type>,
+        rhs_ty: Spanned<typecheck::types::Type>,
+        op: Spanned<BinaryOp>,
+        span: Span,
+    },
+    CannotUnaryOp {
+        expr_ty: Spanned<typecheck::types::Type>,
+        op: Spanned<UnaryOp>,
+        span: Span,
+    },
+    TypeMismatch {
+        expected: Spanned<typecheck::types::Type>,
+        found: Spanned<typecheck::types::Type>,
     },
 }
 
@@ -34,6 +60,34 @@ impl Diag for Error {
                     .unwrap_or("end of input")
             ),
             Self::Custom { message, span: _ } => message.clone(),
+            Self::UndefinedName { ident, span: _ } => {
+                format!("Undefined name '{ident}'")
+            }
+            Self::UnknownType { span: _ } => "Unknown type".to_string(),
+            Self::CannotBinaryOp {
+                lhs_ty,
+                rhs_ty,
+                op,
+                span: _,
+            } => {
+                format!(
+                    "Cannot apply binary operator '{}' to values of type '{}' and '{}'",
+                    op.0, lhs_ty.0, rhs_ty.0
+                )
+            }
+            Self::CannotUnaryOp {
+                expr_ty,
+                op,
+                span: _,
+            } => {
+                format!(
+                    "Cannot apply unary operator '{}' to value of type '{}'",
+                    op.0, expr_ty.0
+                )
+            }
+            Self::TypeMismatch { expected, found } => {
+                format!("Expected type '{}', found '{}'", expected.0, found.0)
+            }
         }
     }
 
@@ -48,6 +102,36 @@ impl Diag for Error {
                 *span,
             )],
             Self::Custom { message: _, span } => vec![ErrorSpan::Primary(None, *span)],
+            Self::UndefinedName { ident, span } => vec![ErrorSpan::Primary(
+                Some(format!("undefined name '{ident}'")),
+                *span,
+            )],
+            Self::UnknownType { span } => {
+                vec![ErrorSpan::Primary(Some("unknown type".to_string()), *span)]
+            }
+            Self::CannotBinaryOp {
+                lhs_ty,
+                rhs_ty,
+                op: _,
+                span: _,
+            } => vec![
+                ErrorSpan::Primary(Some(format!("{}", lhs_ty.0)), lhs_ty.1),
+                ErrorSpan::Primary(Some(format!("{}", rhs_ty.0)), rhs_ty.1),
+            ],
+            Self::CannotUnaryOp {
+                expr_ty,
+                op: _,
+                span: _,
+            } => vec![ErrorSpan::Primary(
+                Some(format!("{}", expr_ty.0)),
+                expr_ty.1,
+            )],
+            Self::TypeMismatch { expected, found } => {
+                vec![
+                    ErrorSpan::Primary(Some(format!("{}", expected.0)), expected.1),
+                    ErrorSpan::Primary(Some(format!("{}", found.0)), found.1),
+                ]
+            }
         }
     }
 
@@ -61,6 +145,23 @@ impl Diag for Error {
             Self::Custom {
                 message: _,
                 span: _,
+            } => vec![],
+            Self::UndefinedName { ident: _, span: _ } => vec![],
+            Self::UnknownType { span: _ } => vec![],
+            Self::CannotBinaryOp {
+                lhs_ty: _,
+                rhs_ty: _,
+                op: _,
+                span: _,
+            } => vec![],
+            Self::CannotUnaryOp {
+                expr_ty: _,
+                op: _,
+                span: _,
+            } => vec![],
+            Self::TypeMismatch {
+                expected: _,
+                found: _,
             } => vec![],
         }
     }

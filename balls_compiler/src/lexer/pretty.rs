@@ -67,7 +67,7 @@ impl TreeItem for WithSpan<Token> {
 pub struct WithSpan<T>(T, balls_span::Span);
 
 impl core::fmt::Display for Token {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Error => write!(f, "Error"),
             Self::Simple(v) => write!(f, "{v}"),
@@ -78,7 +78,7 @@ impl core::fmt::Display for Token {
 }
 
 impl core::fmt::Display for Simple {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Ident(v) => write!(f, "Ident<{v}>"),
             Self::Integer(v) => write!(f, "Integer<{v}>"),
@@ -91,7 +91,7 @@ impl core::fmt::Display for Simple {
 }
 
 impl core::fmt::Display for Kw {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Let => write!(f, "let"),
         }
@@ -99,7 +99,7 @@ impl core::fmt::Display for Kw {
 }
 
 impl core::fmt::Display for Punc {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::DoubleColon => write!(f, "::"),
             Self::DoubleEquals => write!(f, "=="),

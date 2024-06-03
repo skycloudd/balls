@@ -15,7 +15,7 @@ pub struct Type(pub &'static str);
 #[derive(Clone, Debug)]
 pub struct Function {
     pub name: Spanned<Ident>,
-    pub args: Spanned<Vec<Spanned<Arg>>>,
+    pub parameters: Spanned<Vec<Spanned<Arg>>>,
     pub return_ty: Spanned<Type>,
     pub body: Spanned<Expr>,
 }
@@ -48,7 +48,7 @@ pub enum Expr {
     },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum BinaryOp {
     Add,
     Subtract,
@@ -64,7 +64,7 @@ pub enum BinaryOp {
     NotEquals,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum UnaryOp {
     Negate,
     Not,
@@ -74,4 +74,51 @@ pub enum UnaryOp {
 pub enum PostfixOp {
     Call(Spanned<Vec<Spanned<Expr>>>),
     FieldAccess(Spanned<Ident>),
+}
+
+impl core::fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Add => write!(f, "+"),
+            Self::Subtract => write!(f, "-"),
+            Self::Multiply => write!(f, "*"),
+            Self::Divide => write!(f, "/"),
+            Self::LessThan => write!(f, "<"),
+            Self::GreaterThan => write!(f, ">"),
+            Self::LessThanEqual => write!(f, "<="),
+            Self::GreaterThanEqual => write!(f, ">="),
+            Self::Equals => write!(f, "=="),
+            Self::NotEquals => write!(f, "!="),
+        }
+    }
+}
+
+impl core::fmt::Display for UnaryOp {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Negate => write!(f, "-"),
+            Self::Not => write!(f, "!"),
+        }
+    }
+}
+
+impl core::fmt::Display for PostfixOp {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Call(args) => {
+                write!(f, "(")?;
+                write!(
+                    f,
+                    "{}",
+                    args.0
+                        .iter()
+                        .map(|_| "_".to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )?;
+                write!(f, ")")
+            }
+            Self::FieldAccess(ident) => write!(f, ".{}", ident.0 .0),
+        }
+    }
 }
