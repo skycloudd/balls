@@ -50,6 +50,10 @@ pub enum Error {
         ty: Spanned<types::Type>,
         span: Span,
     },
+    FeatureNotImplemented {
+        feature: &'static str,
+        span: Span,
+    },
 }
 
 #[allow(clippy::match_same_arms)]
@@ -106,6 +110,9 @@ impl Diag for Error {
             } => format!("Expected {expected} arguments, found {found}"),
             Self::CannotCall { ty, span: _ } => {
                 format!("Cannot call value of type '{}'", ty.0)
+            }
+            Self::FeatureNotImplemented { feature, span: _ } => {
+                format!("{feature} is not yet implemented")
             }
         }
     }
@@ -166,6 +173,9 @@ impl Diag for Error {
             Self::CannotCall { ty, span } => {
                 vec![ErrorSpan::Primary(Some(format!("{}", ty.0)), *span)]
             }
+            Self::FeatureNotImplemented { feature: _, span } => {
+                vec![ErrorSpan::Primary(None, *span)]
+            }
         }
     }
 
@@ -204,6 +214,12 @@ impl Diag for Error {
                 found_span: _,
             } => vec![],
             Self::CannotCall { ty: _, span: _ } => vec![],
+            Self::FeatureNotImplemented {
+                feature: _,
+                span: _,
+            } => {
+                vec!["This feature has not yet been implemented. It will be added in a future version.".to_string()]
+            }
         }
     }
 

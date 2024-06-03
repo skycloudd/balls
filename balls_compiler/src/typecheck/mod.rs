@@ -3,7 +3,7 @@ use crate::{
     parser::ast,
     scopes::Scopes,
 };
-use balls_span::Spanned;
+use balls_span::{MakeSpanned, Spanned};
 use chumsky::span::Span as _;
 use std::collections::HashMap;
 use typed_ast::{Arg, BinaryOp, Expr, Function, Ident, PostfixOp, TypedAst, TypedExpr, UnaryOp};
@@ -89,6 +89,15 @@ impl<'d> Typechecker<'d> {
 
             let body = self.typecheck_expr(function.body);
 
+            let return_ty_id = self.engine.insert_type(return_ty.clone());
+            let body_ty_id = self.engine.insert_type(body.0.ty.clone());
+
+            self.engine
+                .unify(return_ty_id, body_ty_id)
+                .unwrap_or_else(|err| {
+                    self.diagnostics.add_error(err);
+                });
+
             self.variables.pop_scope();
 
             Function {
@@ -125,15 +134,15 @@ impl<'d> Typechecker<'d> {
                 }
             }
             ast::Expr::Integer(integer) => TypedExpr {
-                ty: Spanned(Type::Primitive(Primitive::Integer), expr_span),
+                ty: Type::Primitive(Primitive::Integer).spanned(expr_span),
                 expr: Expr::Integer(integer),
             },
             ast::Expr::Float(float) => TypedExpr {
-                ty: Spanned(Type::Primitive(Primitive::Float), expr_span),
+                ty: Type::Primitive(Primitive::Float).spanned(expr_span),
                 expr: Expr::Float(float),
             },
             ast::Expr::Boolean(boolean) => TypedExpr {
-                ty: Spanned(Type::Primitive(Primitive::Boolean), expr_span),
+                ty: Type::Primitive(Primitive::Boolean).spanned(expr_span),
                 expr: Expr::Boolean(boolean),
             },
             ast::Expr::Lazy(expr) => {
@@ -193,7 +202,7 @@ impl<'d> Typechecker<'d> {
                 };
 
                 TypedExpr {
-                    ty: Spanned(expr_ty, expr_span),
+                    ty: expr_ty.spanned(expr_span),
                     expr: Expr::Binary {
                         op: op.map(lower_binary_op),
                         lhs: lhs.boxed(),
@@ -227,7 +236,7 @@ impl<'d> Typechecker<'d> {
                 };
 
                 TypedExpr {
-                    ty: Spanned(expr_ty, expr_span),
+                    ty: expr_ty.spanned(expr_span),
                     expr: Expr::Unary {
                         op: op.map(lower_unary_op),
                         expr: expr.boxed(),
@@ -245,56 +254,73 @@ impl<'d> Typechecker<'d> {
                                 .collect::<Vec<_>>()
                         });
 
-                        if let Type::Function {
-                            parameters,
-                            return_ty,
-                        } = &expr.0.ty.0
-                        {
-                            if parameters.0.len() != args.0.len() {
-                                self.diagnostics.add_error(Error::ArgumentCountMismatch {
-                                    expected: parameters.0.len(),
-                                    found: args.0.len(),
-                                    expected_span: parameters.1,
-                                    found_span: args.1,
+                        let return_ty = match &expr.0.ty.0 {
+                            Type::Function {
+                                parameters,
+                                return_ty,
+                            } => {
+                                if parameters.0.len() != args.0.len() {
+                                    self.diagnostics.add_error(Error::ArgumentCountMismatch {
+                                        expected: parameters.0.len(),
+                                        found: args.0.len(),
+                                        expected_span: parameters.1,
+                                        found_span: args.1,
+                                    });
+
+                                    return TypedExpr {
+                                        ty: return_ty.clone().unbox(),
+                                        expr: Expr::Error,
+                                    };
+                                }
+
+                                for (arg, param) in
+                                    args.0.clone().into_iter().zip(parameters.0.clone())
+                                {
+                                    let arg_ty = self.engine.insert_type(arg.0.ty);
+
+                                    let param_ty = self.engine.insert_type(param);
+
+                                    self.engine.unify(param_ty, arg_ty).unwrap_or_else(|err| {
+                                        self.diagnostics.add_error(err);
+                                    });
+                                }
+
+                                return_ty.clone().unbox()
+                            }
+                            Type::Error => Type::Error.spanned(expr.0.ty.1),
+                            _ => {
+                                self.diagnostics.add_error(Error::CannotCall {
+                                    ty: expr.0.ty.clone(),
+                                    span: expr.1,
                                 });
 
-                                return TypedExpr {
-                                    ty: return_ty.clone().unbox(),
-                                    expr: Expr::Error,
-                                };
+                                Type::Error.spanned(expr.0.ty.1)
                             }
+                        };
 
-                            for (arg, param) in args.0.clone().into_iter().zip(parameters.0.clone())
-                            {
-                                let arg_ty = self.engine.insert_type(arg.0.ty);
-
-                                let param_ty = self.engine.insert_type(param);
-
-                                self.engine.unify(arg_ty, param_ty).unwrap_or_else(|err| {
-                                    self.diagnostics.add_error(err);
-                                });
-                            }
-
-                            TypedExpr {
-                                ty: return_ty.clone().unbox(),
-                                expr: Expr::Postfix {
-                                    expr: expr.boxed(),
-                                    op: Spanned(PostfixOp::Call(args), op.1),
-                                },
-                            }
-                        } else {
-                            self.diagnostics.add_error(Error::CannotCall {
-                                ty: expr.0.ty.clone(),
-                                span: expr.1,
-                            });
-
-                            TypedExpr {
-                                ty: Spanned(Type::Error, expr_span),
-                                expr: Expr::Error,
-                            }
+                        TypedExpr {
+                            ty: return_ty,
+                            expr: Expr::Postfix {
+                                expr: expr.boxed(),
+                                op: PostfixOp::Call(args).spanned(op.1),
+                            },
                         }
                     }
-                    ast::PostfixOp::FieldAccess(_field_name) => todo!(),
+                    ast::PostfixOp::FieldAccess(field_name) => {
+                        self.diagnostics.add_error(Error::FeatureNotImplemented {
+                            feature: "field access",
+                            span: op.1,
+                        });
+
+                        TypedExpr {
+                            ty: Type::Error.spanned(op.1),
+                            expr: Expr::Postfix {
+                                expr: expr.boxed(),
+                                op: PostfixOp::FieldAccess(field_name.as_ref().map(lower_ident))
+                                    .spanned(op.1),
+                            },
+                        }
+                    }
                 }
             }
         })
@@ -412,19 +438,17 @@ impl Engine {
                 parameters,
                 return_ty,
             } => Ok(Type::Function {
-                parameters: Spanned(
-                    parameters
-                        .0
-                        .iter()
-                        .map(|arg| self.reconstruct(*arg))
-                        .collect::<Result<_, _>>()?,
-                    parameters.1,
-                ),
+                parameters: parameters
+                    .0
+                    .iter()
+                    .map(|arg| self.reconstruct(*arg))
+                    .collect::<Result<Vec<_>, _>>()?
+                    .spanned(parameters.1),
                 return_ty: self.reconstruct(*return_ty)?.boxed(),
             }),
             TypeInfo::UserDefined(name) => Ok(Type::UserDefined(name)),
         }
-        .map(|ty| Spanned(ty, var.1))
+        .map(|ty| ty.spanned(var.1))
     }
 
     fn type_to_typeinfo(&mut self, ty: Spanned<Type>) -> Spanned<TypeInfo> {

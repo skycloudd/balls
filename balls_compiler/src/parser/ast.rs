@@ -105,19 +105,15 @@ impl core::fmt::Display for UnaryOp {
 impl core::fmt::Display for PostfixOp {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Self::Call(args) => {
-                write!(f, "(")?;
-                write!(
-                    f,
-                    "{}",
-                    args.0
-                        .iter()
-                        .map(|_| "_".to_string())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                )?;
-                write!(f, ")")
-            }
+            Self::Call(args) => write!(
+                f,
+                "({})",
+                args.0
+                    .iter()
+                    .map(|_| "_".to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
             Self::FieldAccess(ident) => write!(f, ".{}", ident.0 .0),
         }
     }

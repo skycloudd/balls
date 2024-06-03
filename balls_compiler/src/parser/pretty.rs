@@ -91,9 +91,7 @@ impl TreeItem for WithSpan<Expr> {
                 let mut children = vec![expr.unbox().into()];
 
                 match op.0 {
-                    PostfixOp::Call(args) => {
-                        children.extend(args.0.into_iter().map(Into::into));
-                    }
+                    PostfixOp::Call(args) => children.extend(args.0.into_iter().map(Into::into)),
                     PostfixOp::FieldAccess(_) => {}
                 }
 

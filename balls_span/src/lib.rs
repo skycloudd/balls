@@ -45,10 +45,12 @@ impl chumsky::span::Span for Span {
 pub struct Spanned<T>(pub T, pub Span);
 
 impl<T> Spanned<T> {
+    #[must_use]
     pub const fn as_ref(&self) -> Spanned<&T> {
         Spanned(&self.0, self.1)
     }
 
+    #[must_use]
     pub fn map<U, F: FnOnce(T) -> U>(self, f: F) -> Spanned<U> {
         Spanned(f(self.0), self.1)
     }
@@ -58,10 +60,12 @@ impl<T> Spanned<T> {
         Self(self.0, f(self.1))
     }
 
+    #[must_use]
     pub fn map_with_span<U, F: FnOnce(T, Span) -> U>(self, f: F) -> Spanned<U> {
         Spanned(f(self.0, self.1), self.1)
     }
 
+    #[must_use]
     pub fn boxed(self) -> Spanned<Box<T>> {
         Spanned(Box::new(self.0), self.1)
     }
@@ -71,5 +75,17 @@ impl<T> Spanned<Box<T>> {
     #[must_use]
     pub fn unbox(self) -> Spanned<T> {
         Spanned(*self.0, self.1)
+    }
+}
+
+pub trait MakeSpanned {
+    fn spanned(self, span: Span) -> Spanned<Self>
+    where
+        Self: Sized;
+}
+
+impl<T> MakeSpanned for T {
+    fn spanned(self, span: Span) -> Spanned<Self> {
+        Spanned(self, span)
     }
 }
