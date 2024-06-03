@@ -1,7 +1,7 @@
 use super::{Diag, ErrorSpan};
 use crate::{
     parser::ast::{BinaryOp, UnaryOp},
-    typecheck,
+    typecheck::types,
 };
 use balls_span::{Span, Spanned};
 use chumsky::error::{Rich, RichReason};
@@ -26,19 +26,29 @@ pub enum Error {
         span: Span,
     },
     CannotBinaryOp {
-        lhs_ty: Spanned<typecheck::types::Type>,
-        rhs_ty: Spanned<typecheck::types::Type>,
+        lhs_ty: Spanned<types::Type>,
+        rhs_ty: Spanned<types::Type>,
         op: Spanned<BinaryOp>,
         span: Span,
     },
     CannotUnaryOp {
-        expr_ty: Spanned<typecheck::types::Type>,
+        expr_ty: Spanned<types::Type>,
         op: Spanned<UnaryOp>,
         span: Span,
     },
     TypeMismatch {
-        expected: Spanned<typecheck::types::Type>,
-        found: Spanned<typecheck::types::Type>,
+        expected: Spanned<types::Type>,
+        found: Spanned<types::Type>,
+    },
+    ArgumentCountMismatch {
+        expected: usize,
+        found: usize,
+        expected_span: Span,
+        found_span: Span,
+    },
+    CannotCall {
+        ty: Spanned<types::Type>,
+        span: Span,
     },
 }
 
@@ -88,6 +98,15 @@ impl Diag for Error {
             Self::TypeMismatch { expected, found } => {
                 format!("Expected type '{}', found '{}'", expected.0, found.0)
             }
+            Self::ArgumentCountMismatch {
+                expected,
+                found,
+                expected_span: _,
+                found_span: _,
+            } => format!("Expected {expected} arguments, found {found}"),
+            Self::CannotCall { ty, span: _ } => {
+                format!("Cannot call value of type '{}'", ty.0)
+            }
         }
     }
 
@@ -132,6 +151,21 @@ impl Diag for Error {
                     ErrorSpan::Primary(Some(format!("{}", found.0)), found.1),
                 ]
             }
+            Self::ArgumentCountMismatch {
+                expected,
+                found,
+                expected_span,
+                found_span,
+            } => vec![
+                ErrorSpan::Primary(
+                    Some(format!("function takes {expected} parameters")),
+                    *expected_span,
+                ),
+                ErrorSpan::Primary(Some(format!("found {found} arguments")), *found_span),
+            ],
+            Self::CannotCall { ty, span } => {
+                vec![ErrorSpan::Primary(Some(format!("{}", ty.0)), *span)]
+            }
         }
     }
 
@@ -163,6 +197,13 @@ impl Diag for Error {
                 expected: _,
                 found: _,
             } => vec![],
+            Self::ArgumentCountMismatch {
+                expected: _,
+                found: _,
+                expected_span: _,
+                found_span: _,
+            } => vec![],
+            Self::CannotCall { ty: _, span: _ } => vec![],
         }
     }
 

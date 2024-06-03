@@ -5,7 +5,7 @@ pub enum Type {
     Error,
     Primitive(Primitive),
     Function {
-        parameters: Vec<Spanned<Type>>,
+        parameters: Spanned<Vec<Spanned<Type>>>,
         return_ty: Spanned<Box<Type>>,
     },
     UserDefined(&'static str),
@@ -32,6 +32,7 @@ impl core::fmt::Display for Type {
                     f,
                     "{}",
                     parameters
+                        .0
                         .iter()
                         .map(|arg| arg.0.to_string())
                         .collect::<Vec<_>>()
