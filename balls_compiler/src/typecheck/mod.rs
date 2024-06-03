@@ -12,12 +12,8 @@ use types::{Primitive, Type};
 mod typed_ast;
 pub mod types;
 
-pub fn typecheck(
-    ast: Spanned<ast::Ast>,
-    diagnostics: &mut Diagnostics,
-    temporary_todo_remove_this_is_fibonacci_example: bool,
-) -> Spanned<TypedAst> {
-    Typechecker::new(diagnostics, temporary_todo_remove_this_is_fibonacci_example).typecheck(ast)
+pub fn typecheck(ast: Spanned<ast::Ast>, diagnostics: &mut Diagnostics) -> Spanned<TypedAst> {
+    Typechecker::new(diagnostics).typecheck(ast)
 }
 
 struct Typechecker<'d> {
@@ -26,21 +22,15 @@ struct Typechecker<'d> {
 
     functions: HashMap<&'static str, TypeId>,
     variables: Scopes<&'static str, TypeId>,
-
-    temporary_todo_remove_this_is_fibonacci_example: bool,
 }
 
 impl<'d> Typechecker<'d> {
-    fn new(
-        diagnostics: &'d mut Diagnostics,
-        temporary_todo_remove_this_is_fibonacci_example: bool,
-    ) -> Self {
+    fn new(diagnostics: &'d mut Diagnostics) -> Self {
         Self {
             engine: Engine::new(),
             diagnostics,
             functions: HashMap::new(),
             variables: Scopes::new(),
-            temporary_todo_remove_this_is_fibonacci_example,
         }
     }
 
@@ -304,46 +294,7 @@ impl<'d> Typechecker<'d> {
                             }
                         }
                     }
-                    // TODO: don't hardcode this
-                    // this is hardcoded for the example in fibonacci.bl
-                    ast::PostfixOp::FieldAccess(field_name) => {
-                        if self.temporary_todo_remove_this_is_fibonacci_example
-                            && field_name.0 .0 == "then_else"
-                        {
-                            TypedExpr {
-                                ty: Spanned(
-                                    Type::Function {
-                                        parameters: Spanned(
-                                            vec![
-                                                Spanned(
-                                                    Type::Primitive(Primitive::Integer),
-                                                    balls_span::Span::default(),
-                                                );
-                                                2
-                                            ],
-                                            balls_span::Span::default(),
-                                        ),
-                                        return_ty: Spanned(
-                                            Box::new(Type::Primitive(Primitive::Boolean)),
-                                            balls_span::Span::default(),
-                                        ),
-                                    },
-                                    expr_span,
-                                ),
-                                expr: Expr::Postfix {
-                                    expr: expr.boxed(),
-                                    op: Spanned(
-                                        PostfixOp::FieldAccess(
-                                            field_name.as_ref().map(lower_ident),
-                                        ),
-                                        op.1,
-                                    ),
-                                },
-                            }
-                        } else {
-                            todo!()
-                        }
-                    }
+                    ast::PostfixOp::FieldAccess(_field_name) => todo!(),
                 }
             }
         })

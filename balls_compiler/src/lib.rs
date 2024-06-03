@@ -99,15 +99,7 @@ impl<'a, 'file> Compiler<'a, 'file> {
             }
         }
 
-        let temporary_todo_remove_this_is_fibonacci_example = *filename == "examples/fibonacci.bl";
-
-        let typed_ast = ast.map(|ast| {
-            typecheck::typecheck(
-                ast,
-                &mut diagnostics,
-                temporary_todo_remove_this_is_fibonacci_example,
-            )
-        });
+        let typed_ast = ast.map(|ast| typecheck::typecheck(ast, &mut diagnostics));
 
         if self.print == Some(Print::TypedAst) {
             if let Some(typed_ast) = &typed_ast {
