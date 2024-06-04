@@ -1,4 +1,4 @@
-use balls_compiler::{diagnostics::report, Compiler, Print};
+use balls_compiler::{diagnostics::report, Compiler};
 use balls_vm::Vm;
 use camino::Utf8PathBuf;
 use clap::Parser;
@@ -13,9 +13,6 @@ use codespan_reporting::{
 #[derive(Parser)]
 struct Args {
     path: Utf8PathBuf,
-
-    #[clap(long)]
-    print: Option<Print>,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -28,7 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut files = SimpleFiles::new();
 
-    let bc = match Compiler::new(&mut files, args.print).compile(&source_code, &args.path)? {
+    let bc = match Compiler::new(&mut files).compile(&source_code, &args.path)? {
         (Some(bc), diagnostics) => {
             assert!(diagnostics.errors().is_empty());
 

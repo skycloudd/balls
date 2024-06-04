@@ -4,7 +4,6 @@ use balls_span::{Span, Spanned};
 use chumsky::{input::SpannedInput, prelude::*};
 
 pub mod ast;
-mod pretty;
 
 pub fn parser<'tok>() -> impl Parser<
     'tok,

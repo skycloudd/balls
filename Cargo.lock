@@ -107,7 +107,6 @@ dependencies = [
  "clap",
  "codespan-reporting",
  "levenshtein",
- "ptree",
 ]
 
 [[package]]
@@ -273,15 +272,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5787f7cda34e3033a72192c018bc5883100330f362ef279a8cbccfce8bb4e874"
 dependencies = [
  "cc",
-]
-
-[[package]]
-name = "ptree"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0de80796b316aec75344095a6d2ef68ec9b8f573b9e7adc821149ba3598e270"
-dependencies = [
- "serde",
 ]
 
 [[package]]
