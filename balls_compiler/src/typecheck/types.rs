@@ -1,14 +1,14 @@
 use balls_span::Spanned;
 
 #[derive(Clone, Debug)]
-pub enum Type {
+pub enum Type<'src> {
     Error,
     Primitive(Primitive),
     Function {
-        parameters: Spanned<Vec<Spanned<Type>>>,
-        return_ty: Spanned<Box<Type>>,
+        parameters: Spanned<Vec<Spanned<Type<'src>>>>,
+        return_ty: Spanned<Box<Type<'src>>>,
     },
-    UserDefined(&'static str),
+    UserDefined(&'src str),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -18,7 +18,7 @@ pub enum Primitive {
     Boolean,
 }
 
-impl core::fmt::Display for Type {
+impl core::fmt::Display for Type<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Error => write!(f, "<error>"),

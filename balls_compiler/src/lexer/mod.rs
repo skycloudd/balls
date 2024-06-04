@@ -4,11 +4,11 @@ use token::{Kw, Punc, Simple, Token, Tokens};
 
 pub mod token;
 
-pub fn lexer() -> impl Parser<
-    'static,
-    WithContext<Span, &'static str>,
-    Tokens,
-    extra::Err<Rich<'static, char, Span, &'static str>>,
+pub fn lexer<'src>() -> impl Parser<
+    'src,
+    WithContext<Span, &'src str>,
+    Tokens<'src>,
+    extra::Err<Rich<'src, char, Span, &'src str>>,
 > {
     recursive(|tokens| {
         let ident = text::ascii::ident().map(Simple::Ident).boxed();

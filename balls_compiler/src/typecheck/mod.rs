@@ -12,20 +12,23 @@ use types::{Primitive, Type};
 mod typed_ast;
 pub mod types;
 
-pub fn typecheck(ast: Spanned<ast::Ast>, diagnostics: &mut Diagnostics) -> Spanned<TypedAst> {
+pub fn typecheck<'src>(
+    ast: Spanned<ast::Ast<'src>>,
+    diagnostics: &mut Diagnostics<'src>,
+) -> Spanned<TypedAst<'src>> {
     Typechecker::new(diagnostics).typecheck(ast)
 }
 
-struct Typechecker<'d> {
-    engine: Engine,
-    diagnostics: &'d mut Diagnostics,
+struct Typechecker<'dia, 'src> {
+    engine: Engine<'src>,
+    diagnostics: &'dia mut Diagnostics<'src>,
 
-    functions: FxHashMap<&'static str, TypeId>,
-    variables: Scopes<&'static str, TypeId>,
+    functions: FxHashMap<&'src str, TypeId>,
+    variables: Scopes<&'src str, TypeId>,
 }
 
-impl<'d> Typechecker<'d> {
-    fn new(diagnostics: &'d mut Diagnostics) -> Self {
+impl<'dia, 'src> Typechecker<'dia, 'src> {
+    fn new(diagnostics: &'dia mut Diagnostics<'src>) -> Self {
         Self {
             engine: Engine::new(),
             diagnostics,
@@ -34,7 +37,7 @@ impl<'d> Typechecker<'d> {
         }
     }
 
-    fn typecheck(&mut self, ast: Spanned<ast::Ast>) -> Spanned<TypedAst> {
+    fn typecheck(&mut self, ast: Spanned<ast::Ast<'src>>) -> Spanned<TypedAst<'src>> {
         ast.map(|ast| {
             let mut typed_ast = TypedAst { functions: vec![] };
 
@@ -64,7 +67,10 @@ impl<'d> Typechecker<'d> {
         })
     }
 
-    fn typecheck_function(&mut self, function: Spanned<ast::Function>) -> Spanned<Function> {
+    fn typecheck_function(
+        &mut self,
+        function: Spanned<ast::Function<'src>>,
+    ) -> Spanned<Function<'src>> {
         function.map(|function| {
             self.variables.push_scope();
 
@@ -110,7 +116,7 @@ impl<'d> Typechecker<'d> {
     }
 
     #[allow(clippy::too_many_lines)]
-    fn typecheck_expr(&mut self, expr: Spanned<ast::Expr>) -> Spanned<TypedExpr> {
+    fn typecheck_expr(&mut self, expr: Spanned<ast::Expr<'src>>) -> Spanned<TypedExpr<'src>> {
         expr.map_with_span(|expr, expr_span| match expr {
             ast::Expr::Ident(ident) => {
                 let ty = self.variables.get(&ident.0 .0).copied().unwrap_or_else(|| {
@@ -327,7 +333,7 @@ impl<'d> Typechecker<'d> {
     }
 }
 
-fn lower_type(ty: &ast::Type) -> Type {
+fn lower_type<'src>(ty: &ast::Type<'src>) -> Type<'src> {
     match ty.0 {
         "int" => Type::Primitive(Primitive::Integer),
         "float" => Type::Primitive(Primitive::Float),
@@ -336,11 +342,11 @@ fn lower_type(ty: &ast::Type) -> Type {
     }
 }
 
-const fn lower_ident(ident: &ast::Ident) -> Ident {
+const fn lower_ident<'src>(ident: &ast::Ident<'src>) -> Ident<'src> {
     Ident(ident.0)
 }
 
-fn lower_arg(arg: &ast::Arg) -> Arg {
+fn lower_arg<'src>(arg: &ast::Arg<'src>) -> Arg<'src> {
     Arg {
         name: arg.name.as_ref().map(lower_ident),
         ty: arg.ty.as_ref().map(lower_type),
@@ -369,12 +375,12 @@ const fn lower_unary_op(op: ast::UnaryOp) -> UnaryOp {
     }
 }
 
-struct Engine {
+struct Engine<'src> {
     id_counter: usize,
-    vars: FxHashMap<TypeId, Spanned<TypeInfo>>,
+    vars: FxHashMap<TypeId, Spanned<TypeInfo<'src>>>,
 }
 
-impl Engine {
+impl<'src> Engine<'src> {
     fn new() -> Self {
         Self {
             id_counter: 0,
@@ -382,14 +388,14 @@ impl Engine {
         }
     }
 
-    fn insert(&mut self, info: Spanned<TypeInfo>) -> TypeId {
+    fn insert(&mut self, info: Spanned<TypeInfo<'src>>) -> TypeId {
         self.id_counter += 1;
         let id = TypeId(self.id_counter);
         self.vars.insert(id, info);
         id
     }
 
-    fn insert_type(&mut self, ty: Spanned<Type>) -> TypeId {
+    fn insert_type(&mut self, ty: Spanned<Type<'src>>) -> TypeId {
         let info = self.type_to_typeinfo(ty);
 
         self.insert(info)
@@ -398,7 +404,7 @@ impl Engine {
     /// Unify two [`TypeId`]s.
     ///
     /// The expected type is `a`, and the found type is `b`.
-    fn unify(&mut self, a: TypeId, b: TypeId) -> Result<(), Error> {
+    fn unify(&mut self, a: TypeId, b: TypeId) -> Result<(), Error<'src>> {
         let var_a = &self.vars[&a];
         let var_b = &self.vars[&b];
 
@@ -426,7 +432,7 @@ impl Engine {
         }
     }
 
-    fn reconstruct(&self, id: TypeId) -> Result<Spanned<Type>, Error> {
+    fn reconstruct(&self, id: TypeId) -> Result<Spanned<Type<'src>>, Error<'src>> {
         let var = &self.vars[&id];
 
         match &var.0 {
@@ -451,7 +457,7 @@ impl Engine {
         .map(|ty| ty.spanned(var.1))
     }
 
-    fn type_to_typeinfo(&mut self, ty: Spanned<Type>) -> Spanned<TypeInfo> {
+    fn type_to_typeinfo(&mut self, ty: Spanned<Type<'src>>) -> Spanned<TypeInfo<'src>> {
         ty.map(|ty| match ty {
             Type::Error => TypeInfo::Error,
             Type::Primitive(primitive) => TypeInfo::Primitive(primitive),
@@ -472,7 +478,7 @@ impl Engine {
     }
 
     #[allow(clippy::unwrap_used)]
-    fn typeinfo_to_type(&self, info: Spanned<TypeInfo>) -> Spanned<Type> {
+    fn typeinfo_to_type(&self, info: Spanned<TypeInfo<'src>>) -> Spanned<Type<'src>> {
         info.map(|info| match info {
             TypeInfo::Error | TypeInfo::Unknown => Type::Error,
             TypeInfo::Ref(id) => self.reconstruct(id).unwrap().0,
@@ -498,7 +504,7 @@ impl Engine {
 pub struct TypeId(usize);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum TypeInfo {
+pub enum TypeInfo<'src> {
     Error,
     #[allow(dead_code)]
     Unknown,
@@ -508,5 +514,5 @@ pub enum TypeInfo {
         parameters: Spanned<Vec<TypeId>>,
         return_ty: TypeId,
     },
-    UserDefined(&'static str),
+    UserDefined(&'src str),
 }

@@ -5,11 +5,11 @@ use chumsky::{input::SpannedInput, prelude::*};
 
 pub mod ast;
 
-pub fn parser<'tok>() -> impl Parser<
+pub fn parser<'src: 'tok, 'tok>() -> impl Parser<
     'tok,
-    SpannedInput<Token, Span, &'tok [(Token, Span)]>,
-    Spanned<Ast>,
-    extra::Err<Rich<'tok, Token, Span, &'static str>>,
+    SpannedInput<Token<'src>, Span, &'tok [(Token<'src>, Span)]>,
+    Spanned<Ast<'src>>,
+    extra::Err<Rich<'tok, Token<'src>, Span, &'src str>>,
 > {
     function_parser()
         .repeated()
@@ -18,11 +18,11 @@ pub fn parser<'tok>() -> impl Parser<
         .boxed()
 }
 
-fn function_parser<'tok>() -> impl Parser<
+fn function_parser<'src: 'tok, 'tok>() -> impl Parser<
     'tok,
-    SpannedInput<Token, Span, &'tok [(Token, Span)]>,
-    Spanned<ast::Function>,
-    extra::Err<Rich<'tok, Token, Span, &'static str>>,
+    SpannedInput<Token<'src>, Span, &'tok [(Token<'src>, Span)]>,
+    Spanned<ast::Function<'src>>,
+    extra::Err<Rich<'tok, Token<'src>, Span, &'src str>>,
 > {
     let name = ident_parser();
 
@@ -64,11 +64,11 @@ fn function_parser<'tok>() -> impl Parser<
 }
 
 #[allow(clippy::too_many_lines)]
-fn expr_parser<'tok>() -> impl Parser<
+fn expr_parser<'src: 'tok, 'tok>() -> impl Parser<
     'tok,
-    SpannedInput<Token, Span, &'tok [(Token, Span)]>,
-    Spanned<Expr>,
-    extra::Err<Rich<'tok, Token, Span, &'static str>>,
+    SpannedInput<Token<'src>, Span, &'tok [(Token<'src>, Span)]>,
+    Spanned<Expr<'src>>,
+    extra::Err<Rich<'tok, Token<'src>, Span, &'src str>>,
 > {
     recursive(|expr| {
         let variable = ident_parser()
@@ -267,11 +267,11 @@ fn expr_parser<'tok>() -> impl Parser<
     })
 }
 
-fn ident_parser<'tok>() -> impl Parser<
+fn ident_parser<'src: 'tok, 'tok>() -> impl Parser<
     'tok,
-    SpannedInput<Token, Span, &'tok [(Token, Span)]>,
-    Spanned<ast::Ident>,
-    extra::Err<Rich<'tok, Token, Span, &'static str>>,
+    SpannedInput<Token<'src>, Span, &'tok [(Token<'src>, Span)]>,
+    Spanned<ast::Ident<'src>>,
+    extra::Err<Rich<'tok, Token<'src>, Span, &'src str>>,
 > {
     select! {
         Token::Simple(token::Simple::Ident(ident)) => ast::Ident(ident)
@@ -279,11 +279,11 @@ fn ident_parser<'tok>() -> impl Parser<
     .map_with(|ident, e| Spanned(ident, e.span()))
 }
 
-fn ty_parser<'tok>() -> impl Parser<
+fn ty_parser<'src: 'tok, 'tok>() -> impl Parser<
     'tok,
-    SpannedInput<Token, Span, &'tok [(Token, Span)]>,
-    Spanned<ast::Type>,
-    extra::Err<Rich<'tok, Token, Span, &'static str>>,
+    SpannedInput<Token<'src>, Span, &'tok [(Token<'src>, Span)]>,
+    Spanned<ast::Type<'src>>,
+    extra::Err<Rich<'tok, Token<'src>, Span, &'src str>>,
 > {
     select! {
         Token::Simple(token::Simple::Ident(ident)) => ast::Type(ident)

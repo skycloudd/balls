@@ -8,7 +8,7 @@ use chumsky::error::{Rich, RichReason};
 use codespan_reporting::diagnostic::Severity;
 
 #[derive(Clone, Debug)]
-pub enum Error {
+pub enum Error<'src> {
     ExpectedFound {
         expected: Vec<String>,
         found: Option<String>,
@@ -19,26 +19,26 @@ pub enum Error {
         span: Span,
     },
     UndefinedName {
-        ident: &'static str,
+        ident: &'src str,
         span: Span,
     },
     UnknownType {
         span: Span,
     },
     CannotBinaryOp {
-        lhs_ty: Spanned<types::Type>,
-        rhs_ty: Spanned<types::Type>,
+        lhs_ty: Spanned<types::Type<'src>>,
+        rhs_ty: Spanned<types::Type<'src>>,
         op: Spanned<BinaryOp>,
         span: Span,
     },
     CannotUnaryOp {
-        expr_ty: Spanned<types::Type>,
+        expr_ty: Spanned<types::Type<'src>>,
         op: Spanned<UnaryOp>,
         span: Span,
     },
     TypeMismatch {
-        expected: Spanned<types::Type>,
-        found: Spanned<types::Type>,
+        expected: Spanned<types::Type<'src>>,
+        found: Spanned<types::Type<'src>>,
     },
     ArgumentCountMismatch {
         expected: usize,
@@ -47,17 +47,17 @@ pub enum Error {
         found_span: Span,
     },
     CannotCall {
-        ty: Spanned<types::Type>,
+        ty: Spanned<types::Type<'src>>,
         span: Span,
     },
     FeatureNotImplemented {
-        feature: &'static str,
+        feature: &'src str,
         span: Span,
     },
 }
 
 #[allow(clippy::match_same_arms)]
-impl Diag for Error {
+impl Diag for Error<'_> {
     fn message(&self) -> String {
         match self {
             Self::ExpectedFound {
@@ -229,8 +229,8 @@ impl Diag for Error {
 }
 
 #[must_use]
-pub fn convert(error: &Rich<'_, String, Span>) -> Vec<Error> {
-    fn convert_inner(reason: &RichReason<String>, span: Span) -> Vec<Error> {
+pub fn convert<'src>(error: &Rich<String, Span, &'src str>) -> Vec<Error<'src>> {
+    fn convert_inner<'src>(reason: &RichReason<String, &'src str>, span: Span) -> Vec<Error<'src>> {
         match reason {
             RichReason::ExpectedFound { expected, found } => vec![Error::ExpectedFound {
                 expected: expected.iter().map(ToString::to_string).collect(),

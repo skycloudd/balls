@@ -2,49 +2,49 @@ use balls_bytecode::{FloatTy, IntTy};
 use balls_span::Spanned;
 
 #[derive(Clone, Debug)]
-pub struct Ast {
-    pub functions: Vec<Spanned<Function>>,
+pub struct Ast<'src> {
+    pub functions: Vec<Spanned<Function<'src>>>,
 }
 
 #[derive(Clone, Debug)]
-pub struct Ident(pub &'static str);
+pub struct Ident<'src>(pub &'src str);
 
 #[derive(Clone, Debug)]
-pub struct Type(pub &'static str);
+pub struct Type<'src>(pub &'src str);
 
 #[derive(Clone, Debug)]
-pub struct Function {
-    pub name: Spanned<Ident>,
-    pub parameters: Spanned<Vec<Spanned<Arg>>>,
-    pub return_ty: Spanned<Type>,
-    pub body: Spanned<Expr>,
+pub struct Function<'src> {
+    pub name: Spanned<Ident<'src>>,
+    pub parameters: Spanned<Vec<Spanned<Arg<'src>>>>,
+    pub return_ty: Spanned<Type<'src>>,
+    pub body: Spanned<Expr<'src>>,
 }
 
 #[derive(Clone, Debug)]
-pub struct Arg {
-    pub name: Spanned<Ident>,
-    pub ty: Spanned<Type>,
+pub struct Arg<'src> {
+    pub name: Spanned<Ident<'src>>,
+    pub ty: Spanned<Type<'src>>,
 }
 
 #[derive(Clone, Debug)]
-pub enum Expr {
-    Ident(Spanned<Ident>),
+pub enum Expr<'src> {
+    Ident(Spanned<Ident<'src>>),
     Integer(IntTy),
     Float(FloatTy),
     Boolean(bool),
-    Lazy(Spanned<Box<Expr>>),
+    Lazy(Spanned<Box<Expr<'src>>>),
     Binary {
         op: Spanned<BinaryOp>,
-        lhs: Spanned<Box<Expr>>,
-        rhs: Spanned<Box<Expr>>,
+        lhs: Spanned<Box<Expr<'src>>>,
+        rhs: Spanned<Box<Expr<'src>>>,
     },
     Unary {
         op: Spanned<UnaryOp>,
-        expr: Spanned<Box<Expr>>,
+        expr: Spanned<Box<Expr<'src>>>,
     },
     Postfix {
-        expr: Spanned<Box<Expr>>,
-        op: Spanned<PostfixOp>,
+        expr: Spanned<Box<Expr<'src>>>,
+        op: Spanned<PostfixOp<'src>>,
     },
 }
 
@@ -71,9 +71,9 @@ pub enum UnaryOp {
 }
 
 #[derive(Clone, Debug)]
-pub enum PostfixOp {
-    Call(Spanned<Vec<Spanned<Expr>>>),
-    FieldAccess(Spanned<Ident>),
+pub enum PostfixOp<'src> {
+    Call(Spanned<Vec<Spanned<Expr<'src>>>>),
+    FieldAccess(Spanned<Ident<'src>>),
 }
 
 impl core::fmt::Display for BinaryOp {
@@ -102,7 +102,7 @@ impl core::fmt::Display for UnaryOp {
     }
 }
 
-impl core::fmt::Display for PostfixOp {
+impl core::fmt::Display for PostfixOp<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Call(args) => write!(

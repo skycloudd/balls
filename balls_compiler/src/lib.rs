@@ -12,13 +12,13 @@ mod scopes;
 mod typecheck;
 
 #[derive(Debug)]
-pub struct Compiler<'a, 'file> {
-    files: &'a mut SimpleFiles<&'file Utf8Path, &'static str>,
+pub struct Compiler<'a, 'file, 'src> {
+    files: &'a mut SimpleFiles<&'file Utf8Path, &'src str>,
 }
 
-impl<'a, 'file> Compiler<'a, 'file> {
+impl<'a, 'file, 'src> Compiler<'a, 'file, 'src> {
     #[must_use]
-    pub fn new(files: &'a mut SimpleFiles<&'file Utf8Path, &'static str>) -> Self {
+    pub fn new(files: &'a mut SimpleFiles<&'file Utf8Path, &'src str>) -> Self {
         Self { files }
     }
 
@@ -29,11 +29,9 @@ impl<'a, 'file> Compiler<'a, 'file> {
     /// Returns an error on I/O errors.
     pub fn compile(
         &mut self,
-        source_code: &str,
+        source_code: &'src str,
         filename: &'file Utf8Path,
-    ) -> std::io::Result<(Option<Bytecode>, Diagnostics)> {
-        let source_code: &'static str = Box::leak(source_code.into());
-
+    ) -> std::io::Result<(Option<Bytecode>, Diagnostics<'src>)> {
         let file_id = self.files.add(filename, source_code);
 
         let file_ctx = Ctx(file_id);
