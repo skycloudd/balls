@@ -1,22 +1,22 @@
 use core::hash::Hash;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 #[derive(Clone)]
 pub struct Scopes<K, V> {
-    base: HashMap<K, V>,
-    scopes: Vec<HashMap<K, V>>,
+    base: FxHashMap<K, V>,
+    scopes: Vec<FxHashMap<K, V>>,
 }
 
 impl<K: Eq + Hash, V: Eq + Hash> Scopes<K, V> {
     pub fn new() -> Self {
         Self {
-            base: HashMap::default(),
+            base: FxHashMap::default(),
             scopes: vec![],
         }
     }
 
     pub fn push_scope(&mut self) {
-        self.scopes.push(HashMap::default());
+        self.scopes.push(FxHashMap::default());
     }
 
     pub fn pop_scope(&mut self) {

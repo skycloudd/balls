@@ -5,7 +5,7 @@ use crate::{
 };
 use balls_span::{MakeSpanned, Spanned};
 use chumsky::span::Span as _;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use typed_ast::{Arg, BinaryOp, Expr, Function, Ident, PostfixOp, TypedAst, TypedExpr, UnaryOp};
 use types::{Primitive, Type};
 
@@ -20,7 +20,7 @@ struct Typechecker<'d> {
     engine: Engine,
     diagnostics: &'d mut Diagnostics,
 
-    functions: HashMap<&'static str, TypeId>,
+    functions: FxHashMap<&'static str, TypeId>,
     variables: Scopes<&'static str, TypeId>,
 }
 
@@ -29,7 +29,7 @@ impl<'d> Typechecker<'d> {
         Self {
             engine: Engine::new(),
             diagnostics,
-            functions: HashMap::new(),
+            functions: FxHashMap::default(),
             variables: Scopes::new(),
         }
     }
@@ -371,14 +371,14 @@ const fn lower_unary_op(op: ast::UnaryOp) -> UnaryOp {
 
 struct Engine {
     id_counter: usize,
-    vars: HashMap<TypeId, Spanned<TypeInfo>>,
+    vars: FxHashMap<TypeId, Spanned<TypeInfo>>,
 }
 
 impl Engine {
     fn new() -> Self {
         Self {
             id_counter: 0,
-            vars: HashMap::new(),
+            vars: FxHashMap::default(),
         }
     }
 
