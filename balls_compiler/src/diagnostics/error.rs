@@ -2,13 +2,15 @@ use super::{Diag, ErrorSpan};
 use crate::{
     parser::ast::{BinaryOp, UnaryOp},
     typecheck::types,
+    RODEO,
 };
 use balls_span::{Span, Spanned};
 use chumsky::error::{Rich, RichReason};
 use codespan_reporting::diagnostic::Severity;
+use lasso::Spur;
 
 #[derive(Clone, Debug)]
-pub enum Error<'src> {
+pub enum Error {
     ExpectedFound {
         expected: Vec<String>,
         found: Option<String>,
@@ -19,26 +21,26 @@ pub enum Error<'src> {
         span: Span,
     },
     UndefinedName {
-        ident: &'src str,
+        ident: Spur,
         span: Span,
     },
     UnknownType {
         span: Span,
     },
     CannotBinaryOp {
-        lhs_ty: Spanned<types::Type<'src>>,
-        rhs_ty: Spanned<types::Type<'src>>,
+        lhs_ty: Spanned<types::Type>,
+        rhs_ty: Spanned<types::Type>,
         op: Spanned<BinaryOp>,
         span: Span,
     },
     CannotUnaryOp {
-        expr_ty: Spanned<types::Type<'src>>,
+        expr_ty: Spanned<types::Type>,
         op: Spanned<UnaryOp>,
         span: Span,
     },
     TypeMismatch {
-        expected: Spanned<types::Type<'src>>,
-        found: Spanned<types::Type<'src>>,
+        expected: Spanned<types::Type>,
+        found: Spanned<types::Type>,
     },
     ArgumentCountMismatch {
         expected: usize,
@@ -47,17 +49,17 @@ pub enum Error<'src> {
         found_span: Span,
     },
     CannotCall {
-        ty: Spanned<types::Type<'src>>,
+        ty: Spanned<types::Type>,
         span: Span,
     },
     FeatureNotImplemented {
-        feature: &'src str,
+        feature: &'static str,
         span: Span,
     },
 }
 
 #[allow(clippy::match_same_arms)]
-impl Diag for Error<'_> {
+impl Diag for Error {
     fn message(&self) -> String {
         match self {
             Self::ExpectedFound {
@@ -75,7 +77,7 @@ impl Diag for Error<'_> {
             ),
             Self::Custom { message, span: _ } => message.clone(),
             Self::UndefinedName { ident, span: _ } => {
-                format!("Undefined name '{ident}'")
+                format!("Undefined name '{}'", RODEO.resolve(ident))
             }
             Self::UnknownType { span: _ } => "Unknown type".to_string(),
             Self::CannotBinaryOp {
@@ -129,7 +131,7 @@ impl Diag for Error<'_> {
             )],
             Self::Custom { message: _, span } => vec![ErrorSpan::Primary(None, *span)],
             Self::UndefinedName { ident, span } => vec![ErrorSpan::Primary(
-                Some(format!("undefined name '{ident}'")),
+                Some(format!("undefined name '{}'", RODEO.resolve(ident))),
                 *span,
             )],
             Self::UnknownType { span } => {
@@ -229,8 +231,8 @@ impl Diag for Error<'_> {
 }
 
 #[must_use]
-pub fn convert<'src>(error: &Rich<String, Span, &'src str>) -> Vec<Error<'src>> {
-    fn convert_inner<'src>(reason: &RichReason<String, &'src str>, span: Span) -> Vec<Error<'src>> {
+pub fn convert(error: &Rich<String, Span, &str>) -> Vec<Error> {
+    fn convert_inner(reason: &RichReason<String, &str>, span: Span) -> Vec<Error> {
         match reason {
             RichReason::ExpectedFound { expected, found } => vec![Error::ExpectedFound {
                 expected: expected.iter().map(ToString::to_string).collect(),

@@ -8,12 +8,12 @@ pub mod error;
 pub mod warning;
 
 #[derive(Debug)]
-pub struct Diagnostics<'src> {
+pub struct Diagnostics {
     warnings: Vec<Warning>,
-    errors: Vec<Error<'src>>,
+    errors: Vec<Error>,
 }
 
-impl<'src> Diagnostics<'src> {
+impl Diagnostics {
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -28,7 +28,7 @@ impl<'src> Diagnostics<'src> {
     }
 
     #[must_use]
-    pub fn errors(&self) -> &[Error<'src>] {
+    pub fn errors(&self) -> &[Error] {
         &self.errors
     }
 
@@ -40,16 +40,16 @@ impl<'src> Diagnostics<'src> {
         self.warnings.extend(warnings);
     }
 
-    pub fn add_error(&mut self, error: Error<'src>) {
+    pub fn add_error(&mut self, error: Error) {
         self.errors.push(error);
     }
 
-    pub fn add_errors(&mut self, errors: impl IntoIterator<Item = Error<'src>>) {
+    pub fn add_errors(&mut self, errors: impl IntoIterator<Item = Error>) {
         self.errors.extend(errors);
     }
 }
 
-impl Default for Diagnostics<'_> {
+impl Default for Diagnostics {
     fn default() -> Self {
         Self::new()
     }

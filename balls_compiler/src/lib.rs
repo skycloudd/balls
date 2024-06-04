@@ -4,12 +4,17 @@ use camino::Utf8Path;
 use chumsky::prelude::*;
 use codespan_reporting::files::SimpleFiles;
 use diagnostics::Diagnostics;
+use lasso::ThreadedRodeo;
+use once_cell::sync::Lazy;
+use typecheck::Typechecker;
 
 pub mod diagnostics;
 mod lexer;
 mod parser;
 mod scopes;
 mod typecheck;
+
+static RODEO: Lazy<ThreadedRodeo> = Lazy::new(ThreadedRodeo::new);
 
 #[derive(Debug)]
 pub struct Compiler<'a, 'file, 'src> {
@@ -31,7 +36,7 @@ impl<'a, 'file, 'src> Compiler<'a, 'file, 'src> {
         &mut self,
         source_code: &'src str,
         filename: &'file Utf8Path,
-    ) -> std::io::Result<(Option<Bytecode>, Diagnostics<'src>)> {
+    ) -> std::io::Result<(Option<Bytecode>, Diagnostics)> {
         let file_id = self.files.add(filename, source_code);
 
         let file_ctx = Ctx(file_id);
@@ -75,7 +80,7 @@ impl<'a, 'file, 'src> Compiler<'a, 'file, 'src> {
                 .flat_map(|err| diagnostics::error::convert(&err)),
         );
 
-        let typed_ast = ast.map(|ast| typecheck::typecheck(ast, &mut diagnostics));
+        let typed_ast = ast.map(|ast| Typechecker::new(&mut diagnostics).typecheck(ast));
 
         println!("{typed_ast:?}");
 

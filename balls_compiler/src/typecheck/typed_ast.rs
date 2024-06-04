@@ -1,55 +1,56 @@
 use super::types::Type;
 use balls_bytecode::{FloatTy, IntTy};
 use balls_span::Spanned;
+use lasso::Spur;
 
 #[derive(Clone, Debug)]
-pub struct TypedAst<'src> {
-    pub functions: Vec<Spanned<Function<'src>>>,
+pub struct TypedAst {
+    pub functions: Vec<Spanned<Function>>,
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct Ident(pub Spur);
+
+#[derive(Clone, Debug)]
+pub struct Function {
+    pub name: Spanned<Ident>,
+    pub parameters: Spanned<Vec<Spanned<Arg>>>,
+    pub return_ty: Spanned<Type>,
+    pub body: Spanned<TypedExpr>,
 }
 
 #[derive(Clone, Debug)]
-pub struct Ident<'src>(pub &'src str);
-
-#[derive(Clone, Debug)]
-pub struct Function<'src> {
-    pub name: Spanned<Ident<'src>>,
-    pub parameters: Spanned<Vec<Spanned<Arg<'src>>>>,
-    pub return_ty: Spanned<Type<'src>>,
-    pub body: Spanned<TypedExpr<'src>>,
+pub struct Arg {
+    pub name: Spanned<Ident>,
+    pub ty: Spanned<Type>,
 }
 
 #[derive(Clone, Debug)]
-pub struct Arg<'src> {
-    pub name: Spanned<Ident<'src>>,
-    pub ty: Spanned<Type<'src>>,
+pub struct TypedExpr {
+    pub ty: Spanned<Type>,
+    pub expr: Expr,
 }
 
 #[derive(Clone, Debug)]
-pub struct TypedExpr<'src> {
-    pub ty: Spanned<Type<'src>>,
-    pub expr: Expr<'src>,
-}
-
-#[derive(Clone, Debug)]
-pub enum Expr<'src> {
+pub enum Expr {
     Error,
-    Ident(Spanned<Ident<'src>>),
+    Ident(Spanned<Ident>),
     Integer(IntTy),
     Float(FloatTy),
     Boolean(bool),
-    Lazy(Spanned<Box<TypedExpr<'src>>>),
+    Lazy(Spanned<Box<TypedExpr>>),
     Binary {
         op: Spanned<BinaryOp>,
-        lhs: Spanned<Box<TypedExpr<'src>>>,
-        rhs: Spanned<Box<TypedExpr<'src>>>,
+        lhs: Spanned<Box<TypedExpr>>,
+        rhs: Spanned<Box<TypedExpr>>,
     },
     Unary {
         op: Spanned<UnaryOp>,
-        expr: Spanned<Box<TypedExpr<'src>>>,
+        expr: Spanned<Box<TypedExpr>>,
     },
     Postfix {
-        expr: Spanned<Box<TypedExpr<'src>>>,
-        op: Spanned<PostfixOp<'src>>,
+        expr: Spanned<Box<TypedExpr>>,
+        op: Spanned<PostfixOp>,
     },
 }
 
@@ -76,7 +77,7 @@ pub enum UnaryOp {
 }
 
 #[derive(Clone, Debug)]
-pub enum PostfixOp<'src> {
-    Call(Spanned<Vec<Spanned<TypedExpr<'src>>>>),
-    FieldAccess(Spanned<Ident<'src>>),
+pub enum PostfixOp {
+    Call(Spanned<Vec<Spanned<TypedExpr>>>),
+    FieldAccess(Spanned<Ident>),
 }

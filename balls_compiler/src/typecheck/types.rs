@@ -1,14 +1,17 @@
 use balls_span::Spanned;
+use lasso::Spur;
+
+use crate::RODEO;
 
 #[derive(Clone, Debug)]
-pub enum Type<'src> {
+pub enum Type {
     Error,
     Primitive(Primitive),
     Function {
-        parameters: Spanned<Vec<Spanned<Type<'src>>>>,
-        return_ty: Spanned<Box<Type<'src>>>,
+        parameters: Spanned<Vec<Spanned<Type>>>,
+        return_ty: Spanned<Box<Type>>,
     },
-    UserDefined(&'src str),
+    UserDefined(Spur),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -18,7 +21,7 @@ pub enum Primitive {
     Boolean,
 }
 
-impl core::fmt::Display for Type<'_> {
+impl core::fmt::Display for Type {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Error => write!(f, "<error>"),
@@ -39,7 +42,7 @@ impl core::fmt::Display for Type<'_> {
                     return_ty.0
                 )
             }
-            Self::UserDefined(name) => write!(f, "{name}"),
+            Self::UserDefined(name) => write!(f, "{}", RODEO.resolve(name)),
         }
     }
 }
