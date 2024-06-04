@@ -27,18 +27,17 @@ impl core::fmt::Display for Type {
                 parameters,
                 return_ty,
             } => {
-                write!(f, "(")?;
                 write!(
                     f,
-                    "{}",
+                    "({}) :: {}",
                     parameters
                         .0
                         .iter()
                         .map(|arg| arg.0.to_string())
                         .collect::<Vec<_>>()
-                        .join(", ")
-                )?;
-                write!(f, ") :: {}", return_ty.0)
+                        .join(", "),
+                    return_ty.0
+                )
             }
             Self::UserDefined(name) => write!(f, "{name}"),
         }
