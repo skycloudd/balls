@@ -325,41 +325,104 @@ impl<'d> Typechecker<'d> {
             ast::Expr::Match { expr, arms } => {
                 let expr = self.typecheck_expr(expr.unbox());
 
-                let result_ty = self.engine.insert(TypeInfo::Unknown.spanned(expr_span));
+                let result_expr_ty = self.engine.insert(TypeInfo::Unknown.spanned(expr_span));
+
+                let result_pattern_ty = self.engine.insert_type(expr.clone().map(|expr| expr.ty.0));
 
                 let arms = arms.map(|arms| {
                     arms.into_iter()
                         .map(|arm| {
                             arm.map(|arm| {
-                                let expr = self.typecheck_expr(arm.expr);
+                                self.variables.push_scope();
 
-                                let arm_ty = self.engine.insert_type(expr.0.ty.clone());
+                                if let ast::Pattern::Ident(ident) = &arm.pattern.0 {
+                                    self.variables.insert(
+                                        Self::lower_ident(&ident.0),
+                                        self.engine.insert_type(
+                                            expr.0.ty.clone().map_span(|_| arm.expr.1),
+                                        ),
+                                    );
+                                }
 
-                                self.engine.unify(result_ty, arm_ty).unwrap_or_else(|err| {
-                                    self.diagnostics.add_error(err);
-                                });
+                                let arm_expr = self.typecheck_expr(arm.expr);
+
+                                self.variables.pop_scope();
+
+                                let arm_ty = self.engine.insert_type(arm_expr.0.ty.clone());
+
+                                self.engine
+                                    .unify(result_expr_ty, arm_ty)
+                                    .unwrap_or_else(|err| {
+                                        self.diagnostics.add_error(err);
+                                    });
+
+                                let pattern =
+                                    arm.pattern
+                                        .map_with_span(|pattern, pat_span| match pattern {
+                                            ast::Pattern::Wildcard => Pattern::Wildcard,
+                                            ast::Pattern::Ident(ident) => Pattern::Ident(
+                                                ident.as_ref().map(Self::lower_ident),
+                                            ),
+                                            ast::Pattern::Int(value) => {
+                                                let int_ty = self.engine.insert(
+                                                    TypeInfo::Primitive(Primitive::Integer)
+                                                        .spanned(pat_span),
+                                                );
+
+                                                self.engine
+                                                    .unify(result_pattern_ty, int_ty)
+                                                    .unwrap_or_else(|err| {
+                                                        self.diagnostics.add_error(err);
+                                                    });
+
+                                                Pattern::Int(value)
+                                            }
+                                            ast::Pattern::Float(value) => {
+                                                let float_ty = self.engine.insert(
+                                                    TypeInfo::Primitive(Primitive::Float)
+                                                        .spanned(pat_span),
+                                                );
+
+                                                self.engine
+                                                    .unify(result_pattern_ty, float_ty)
+                                                    .unwrap_or_else(|err| {
+                                                        self.diagnostics.add_error(err);
+                                                    });
+
+                                                Pattern::Float(value)
+                                            }
+                                            ast::Pattern::Bool(value) => {
+                                                let bool_ty = self.engine.insert(
+                                                    TypeInfo::Primitive(Primitive::Boolean)
+                                                        .spanned(pat_span),
+                                                );
+
+                                                self.engine
+                                                    .unify(result_pattern_ty, bool_ty)
+                                                    .unwrap_or_else(|err| {
+                                                        self.diagnostics.add_error(err);
+                                                    });
+
+                                                Pattern::Bool(value)
+                                            }
+                                        });
 
                                 MatchArm {
-                                    pattern: arm.pattern.map(|pattern| match pattern {
-                                        ast::Pattern::Wildcard => Pattern::Wildcard,
-                                        ast::Pattern::Ident(ident) => {
-                                            Pattern::Ident(ident.as_ref().map(Self::lower_ident))
-                                        }
-                                        ast::Pattern::Int(value) => Pattern::Int(value),
-                                        ast::Pattern::Float(value) => Pattern::Float(value),
-                                        ast::Pattern::Bool(value) => Pattern::Bool(value),
-                                    }),
-                                    expr,
+                                    pattern,
+                                    expr: arm_expr,
                                 }
                             })
                         })
                         .collect()
                 });
 
-                let result_ty = self.engine.reconstruct(result_ty).unwrap_or_else(|err| {
-                    self.diagnostics.add_error(err);
-                    Type::Error.spanned(expr_span)
-                });
+                let result_ty = self
+                    .engine
+                    .reconstruct(result_expr_ty)
+                    .unwrap_or_else(|err| {
+                        self.diagnostics.add_error(err);
+                        Type::Error.spanned(expr_span)
+                    });
 
                 TypedExpr {
                     ty: result_ty,
