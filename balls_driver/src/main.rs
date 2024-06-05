@@ -13,6 +13,9 @@ use codespan_reporting::{
 #[derive(Parser)]
 struct Args {
     path: Utf8PathBuf,
+
+    #[clap(short, long)]
+    debug: bool,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut files = SimpleFiles::new();
 
-    let bc = match Compiler::new(&mut files).compile(&source_code, &args.path)? {
+    let bc = match Compiler::new(&mut files).compile(&source_code, &args.path, args.debug)? {
         (Some(bc), diagnostics) => {
             assert!(diagnostics.errors().is_empty());
 

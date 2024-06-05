@@ -36,6 +36,7 @@ impl<'a, 'file, 'src> Compiler<'a, 'file, 'src> {
         &mut self,
         source_code: &'src str,
         filename: &'file Utf8Path,
+        debug: bool,
     ) -> std::io::Result<(Option<Bytecode>, Diagnostics)> {
         let file_id = self.files.add(filename, source_code);
 
@@ -82,7 +83,9 @@ impl<'a, 'file, 'src> Compiler<'a, 'file, 'src> {
 
         let typed_ast = ast.map(|ast| Typechecker::new(&mut diagnostics).typecheck(ast));
 
-        println!("{typed_ast:?}");
+        if debug {
+            println!("{typed_ast:?}");
+        }
 
         if !diagnostics.errors().is_empty() {
             return Ok((None, diagnostics));
