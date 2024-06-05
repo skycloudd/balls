@@ -1,2 +1,0 @@
-let simple (x :: int, y :: int, z :: int) :: int =
-    x * y + z
