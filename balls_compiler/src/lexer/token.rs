@@ -31,7 +31,6 @@ pub enum Kw {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Punc {
-    DoubleColon,
     DoubleEquals,
     NotEquals,
     SingleArrow,
@@ -41,6 +40,7 @@ pub enum Punc {
     Comma,
     Exclamation,
     Pipe,
+    Colon,
 
     // arithmetic op
     Plus,
@@ -112,7 +112,6 @@ impl core::fmt::Display for Kw {
 impl core::fmt::Display for Punc {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Self::DoubleColon => write!(f, "::"),
             Self::DoubleEquals => write!(f, "=="),
             Self::NotEquals => write!(f, "!="),
             Self::SingleArrow => write!(f, "->"),
@@ -122,6 +121,7 @@ impl core::fmt::Display for Punc {
             Self::Comma => write!(f, ","),
             Self::Exclamation => write!(f, "!"),
             Self::Pipe => write!(f, "|"),
+            Self::Colon => write!(f, ":"),
 
             Self::Plus => write!(f, "+"),
             Self::Minus => write!(f, "-"),

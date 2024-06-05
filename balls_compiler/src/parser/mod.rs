@@ -27,7 +27,7 @@ fn function_parser<'src: 'tok, 'tok>() -> impl Parser<
     let name = ident_parser();
 
     let parameter = ident_parser()
-        .then_ignore(just(Token::Simple(token::Simple::Punc(Punc::DoubleColon))))
+        .then_ignore(just(Token::Simple(token::Simple::Punc(Punc::Colon))))
         .then(ty_parser())
         .map_with(|(name, ty), e| Spanned(Arg { name, ty }, e.span()))
         .boxed();
@@ -45,7 +45,7 @@ fn function_parser<'src: 'tok, 'tok>() -> impl Parser<
     just(Token::Simple(token::Simple::Kw(Kw::Let)))
         .ignore_then(name)
         .then(parameters)
-        .then_ignore(just(Token::Simple(token::Simple::Punc(Punc::DoubleColon))))
+        .then_ignore(just(Token::Simple(token::Simple::Punc(Punc::SingleArrow))))
         .then(ty_parser())
         .then_ignore(just(Token::Simple(token::Simple::Punc(Punc::Equals))))
         .then(expr_parser())

@@ -60,7 +60,6 @@ pub fn lexer<'src>() -> impl Parser<
         let punctuation = choice((
             // 2 char
             //
-            just("::").to(Simple::Punc(Punc::DoubleColon)),
             just("==").to(Simple::Punc(Punc::DoubleEquals)),
             just("!=").to(Simple::Punc(Punc::NotEquals)),
             just("->").to(Simple::Punc(Punc::SingleArrow)),
@@ -71,6 +70,7 @@ pub fn lexer<'src>() -> impl Parser<
             just(',').to(Simple::Punc(Punc::Comma)),
             just('!').to(Simple::Punc(Punc::Exclamation)),
             just('|').to(Simple::Punc(Punc::Pipe)),
+            just(":").to(Simple::Punc(Punc::Colon)),
             // arithmetic op
             just('+').to(Simple::Punc(Punc::Plus)),
             just('-').to(Simple::Punc(Punc::Minus)),
