@@ -62,13 +62,17 @@ def run_program(file) -> bytes:
         stderr = process.stderr.decode().removesuffix("\n")
         PRINT(f"{C_BLACK_2}{stderr}{C_END}")
 
-    return process.stdout
+    return process
 
 
 def main():
-    dirs_in_directory = [f for f in listdir(DIRECTORY) if isdir(join(DIRECTORY, f))]
+    dirs_in_directory = sorted(
+        [f for f in listdir(DIRECTORY) if isdir(join(DIRECTORY, f))]
+    )
 
-    print(f"Running programs in `{DIRECTORY}` directory...")
+    print(f"Running {len(dirs_in_directory)} programs in `{DIRECTORY}` directory...")
+
+    exit_code = 0
 
     for program_dir in dirs_in_directory:
         print()
@@ -77,7 +81,8 @@ def main():
         program_file = join(DIRECTORY, program_dir, "program.bl")
 
         if isfile(program_file):
-            output = run_program(program_file)
+            process = run_program(program_file)
+            output = process.stdout
 
             check_file = join(DIRECTORY, program_dir, "check")
 
@@ -96,12 +101,27 @@ def main():
 
                         print(f"{C_RED}Actual output:{C_END}")
                         PRINT(f"{C_BLACK_2}{output.decode()}{C_END}")
+
+                    exit_code = 1
             else:
                 print(f"{C_RED}`{program_dir}` does not contain a check file.{C_END}")
         else:
             print(
                 f"{C_YELLOW}Skipping `{program_dir}` because it does not contain a program file.{C_END}"
             )
+
+    print()
+    print(f"Finished running {len(dirs_in_directory)} programs.")
+    print(
+        f"{C_GREEN}All programs passed.{C_END}"
+        if exit_code == 0
+        else f"{C_RED}Some programs failed.{C_END}"
+    )
+    print(
+        f"{C_GREEN if exit_code == 0 else C_RED}Exiting with code {exit_code}.{C_END}"
+    )
+
+    exit(exit_code)
 
 
 if __name__ == "__main__":
