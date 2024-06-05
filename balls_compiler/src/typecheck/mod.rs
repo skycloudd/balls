@@ -8,7 +8,10 @@ use balls_span::{MakeSpanned, Spanned};
 use chumsky::span::Span as _;
 use lasso::Spur;
 use rustc_hash::FxHashMap;
-use typed_ast::{Arg, BinaryOp, Expr, Function, Ident, PostfixOp, TypedAst, TypedExpr, UnaryOp};
+use typed_ast::{
+    Arg, BinaryOp, Expr, Function, Ident, MatchArm, Pattern, PostfixOp, TypedAst, TypedExpr,
+    UnaryOp,
+};
 use types::{Primitive, Type};
 
 mod typed_ast;
@@ -147,14 +150,6 @@ impl<'d> Typechecker<'d> {
                 ty: Type::Primitive(Primitive::Boolean).spanned(expr_span),
                 expr: Expr::Boolean(boolean),
             },
-            ast::Expr::Lazy(expr) => {
-                let expr = self.typecheck_expr(expr.unbox());
-
-                TypedExpr {
-                    ty: expr.0.ty.clone().map_span(|_| expr_span),
-                    expr: Expr::Lazy(expr.boxed()),
-                }
-            }
             ast::Expr::Binary { op, lhs, rhs } => {
                 let lhs = self.typecheck_expr(lhs.unbox());
                 let rhs = self.typecheck_expr(rhs.unbox());
@@ -325,6 +320,53 @@ impl<'d> Typechecker<'d> {
                             },
                         }
                     }
+                }
+            }
+            ast::Expr::Match { expr, arms } => {
+                let expr = self.typecheck_expr(expr.unbox());
+
+                let result_ty = self.engine.insert(TypeInfo::Unknown.spanned(expr_span));
+
+                let arms = arms.map(|arms| {
+                    arms.into_iter()
+                        .map(|arm| {
+                            arm.map(|arm| {
+                                let expr = self.typecheck_expr(arm.expr);
+
+                                let arm_ty = self.engine.insert_type(expr.0.ty.clone());
+
+                                self.engine.unify(result_ty, arm_ty).unwrap_or_else(|err| {
+                                    self.diagnostics.add_error(err);
+                                });
+
+                                MatchArm {
+                                    pattern: arm.pattern.map(|pattern| match pattern {
+                                        ast::Pattern::Wildcard => Pattern::Wildcard,
+                                        ast::Pattern::Ident(ident) => {
+                                            Pattern::Ident(ident.as_ref().map(Self::lower_ident))
+                                        }
+                                        ast::Pattern::Int(value) => Pattern::Int(value),
+                                        ast::Pattern::Float(value) => Pattern::Float(value),
+                                        ast::Pattern::Bool(value) => Pattern::Bool(value),
+                                    }),
+                                    expr,
+                                }
+                            })
+                        })
+                        .collect()
+                });
+
+                let result_ty = self.engine.reconstruct(result_ty).unwrap_or_else(|err| {
+                    self.diagnostics.add_error(err);
+                    Type::Error.spanned(expr_span)
+                });
+
+                TypedExpr {
+                    ty: result_ty,
+                    expr: Expr::Match {
+                        expr: expr.boxed(),
+                        arms,
+                    },
                 }
             }
         })

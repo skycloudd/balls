@@ -38,7 +38,6 @@ pub enum Expr {
     Integer(IntTy),
     Float(FloatTy),
     Boolean(bool),
-    Lazy(Spanned<Box<TypedExpr>>),
     Binary {
         op: Spanned<BinaryOp>,
         lhs: Spanned<Box<TypedExpr>>,
@@ -52,6 +51,25 @@ pub enum Expr {
         expr: Spanned<Box<TypedExpr>>,
         op: Spanned<PostfixOp>,
     },
+    Match {
+        expr: Spanned<Box<TypedExpr>>,
+        arms: Spanned<Vec<Spanned<MatchArm>>>,
+    },
+}
+
+#[derive(Clone, Debug)]
+pub struct MatchArm {
+    pub pattern: Spanned<Pattern>,
+    pub expr: Spanned<TypedExpr>,
+}
+
+#[derive(Clone, Debug)]
+pub enum Pattern {
+    Wildcard,
+    Ident(Spanned<Ident>),
+    Int(IntTy),
+    Float(FloatTy),
+    Bool(bool),
 }
 
 #[derive(Clone, Debug)]

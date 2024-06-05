@@ -50,7 +50,12 @@ pub fn lexer<'src>() -> impl Parser<
             .map(Simple::Float)
             .boxed();
 
-        let keyword = choice((text::keyword("let").to(Simple::Kw(Kw::Let)),)).boxed();
+        let keyword = choice((
+            text::keyword("let").to(Simple::Kw(Kw::Let)),
+            text::keyword("match").to(Simple::Kw(Kw::Match)),
+            text::keyword("with").to(Simple::Kw(Kw::With)),
+        ))
+        .boxed();
 
         let punctuation = choice((
             // 2 char
@@ -58,12 +63,14 @@ pub fn lexer<'src>() -> impl Parser<
             just("::").to(Simple::Punc(Punc::DoubleColon)),
             just("==").to(Simple::Punc(Punc::DoubleEquals)),
             just("!=").to(Simple::Punc(Punc::NotEquals)),
+            just("->").to(Simple::Punc(Punc::SingleArrow)),
             // 1 char
             //
             just("=").to(Simple::Punc(Punc::Equals)),
             just('.').to(Simple::Punc(Punc::Period)),
             just(',').to(Simple::Punc(Punc::Comma)),
             just('!').to(Simple::Punc(Punc::Exclamation)),
+            just('|').to(Simple::Punc(Punc::Pipe)),
             // arithmetic op
             just('+').to(Simple::Punc(Punc::Plus)),
             just('-').to(Simple::Punc(Punc::Minus)),

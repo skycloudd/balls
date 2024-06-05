@@ -1,5 +1,5 @@
 use crate::lexer::token::{self, Kw, Punc, Token};
-use ast::{Arg, Ast, BinaryOp, Expr, Function, PostfixOp, UnaryOp};
+use ast::{Arg, Ast, BinaryOp, Expr, Function, MatchArm, Pattern, PostfixOp, UnaryOp};
 use balls_span::{Span, Spanned};
 use chumsky::{input::SpannedInput, prelude::*};
 
@@ -100,12 +100,46 @@ fn expr_parser<'src: 'tok, 'tok>() -> impl Parser<
             })
             .boxed();
 
-        let lazy_expr = expr
-            .clone()
-            .nested_in(select_ref! {
-                Token::CurlyBraces(tokens) = e => tokens.0.as_slice().spanned(Span::to_end(&e.span()))
+        let pattern = choice((
+            ident_parser().map(|ident| match ident.0 .0 {
+                "_" => Pattern::Wildcard,
+                _ => Pattern::Ident(ident),
+            }),
+            select! {
+                Token::Simple(token::Simple::Integer(i)) => Pattern::Int(i),
+                Token::Simple(token::Simple::Float(f)) => Pattern::Float(f),
+                Token::Simple(token::Simple::Boolean(b)) => Pattern::Bool(b),
+            },
+        ))
+        .map_with(|pattern, e| Spanned(pattern, e.span()))
+        .boxed();
+
+        let match_arm = pattern
+            .then_ignore(just(Token::Simple(token::Simple::Punc(Punc::SingleArrow))))
+            .then(expr.clone())
+            .map_with(|(pattern, expr), e| Spanned(MatchArm { pattern, expr }, e.span()))
+            .boxed();
+
+        let match_expr = just(Token::Simple(token::Simple::Kw(Kw::Match)))
+            .ignore_then(expr.clone())
+            .then_ignore(just(Token::Simple(token::Simple::Kw(Kw::With))))
+            .then(
+                match_arm
+                    .separated_by(just(Token::Simple(token::Simple::Punc(Punc::Pipe))))
+                    .allow_leading()
+                    .allow_trailing()
+                    .collect()
+                    .map_with(|arms, e| Spanned(arms, e.span())),
+            )
+            .map_with(|(expr, arms), e| {
+                Spanned(
+                    Expr::Match {
+                        expr: expr.boxed(),
+                        arms,
+                    },
+                    e.span(),
+                )
             })
-            .map_with(|expr: Spanned<Expr>, e| Spanned(Expr::Lazy(expr.boxed()), e.span()))
             .boxed();
 
         let atom = choice((
@@ -114,7 +148,7 @@ fn expr_parser<'src: 'tok, 'tok>() -> impl Parser<
             integer,
             float,
             parenthesized_expr,
-            lazy_expr,
+            match_expr,
         ))
         .boxed();
 
