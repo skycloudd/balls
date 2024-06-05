@@ -49,6 +49,7 @@ pub enum Expr<'src> {
         expr: Spanned<Box<Expr<'src>>>,
         arms: Spanned<Vec<Spanned<MatchArm<'src>>>>,
     },
+    Print(Spanned<Box<Expr<'src>>>),
 }
 
 #[derive(Clone, Debug)]

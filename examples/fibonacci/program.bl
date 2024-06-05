@@ -3,3 +3,6 @@ let fib (n: int) -> int =
     | 0 -> 0
     | 1 -> 1
     | _ -> fib(n - 1) + fib(n - 2)
+
+let main () -> int =
+    { fib(10) }

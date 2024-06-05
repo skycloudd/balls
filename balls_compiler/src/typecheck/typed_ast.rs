@@ -55,6 +55,7 @@ pub enum Expr {
         expr: Spanned<Box<TypedExpr>>,
         arms: Spanned<Vec<Spanned<MatchArm>>>,
     },
+    Print(Spanned<Box<TypedExpr>>),
 }
 
 #[derive(Clone, Debug)]

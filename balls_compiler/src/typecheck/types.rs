@@ -1,7 +1,6 @@
+use crate::RODEO;
 use balls_span::Spanned;
 use lasso::Spur;
-
-use crate::RODEO;
 
 #[derive(Clone, Debug)]
 pub enum Type {

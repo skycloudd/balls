@@ -142,6 +142,14 @@ fn expr_parser<'src: 'tok, 'tok>() -> impl Parser<
             })
             .boxed();
 
+        let print = expr
+        .clone()
+        .nested_in(select_ref! {
+            Token::CurlyBraces(tokens) = e => tokens.0.as_slice().spanned(Span::to_end(&e.span()))
+        })
+        .map_with(|expr, e| Spanned(Expr::Print(expr.boxed()), e.span()))
+        .boxed();
+
         let atom = choice((
             variable,
             boolean,
@@ -149,6 +157,7 @@ fn expr_parser<'src: 'tok, 'tok>() -> impl Parser<
             float,
             parenthesized_expr,
             match_expr,
+            print,
         ))
         .boxed();
 

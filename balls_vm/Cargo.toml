@@ -5,6 +5,8 @@ edition = "2021"
 
 [dependencies]
 balls_bytecode = { path = "../balls_bytecode" }
+lasso = { workspace = true }
+rustc-hash = { workspace = true }
 
 [lints]
 workspace = true

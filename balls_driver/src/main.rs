@@ -1,4 +1,5 @@
 use balls_compiler::{diagnostics::report, Compiler};
+use balls_vm::Vm;
 use camino::Utf8PathBuf;
 use clap::Parser;
 use codespan_reporting::{
@@ -27,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut files = SimpleFiles::new();
 
-    let ast = match Compiler::new(&mut files).compile(&source_code, &args.path)? {
+    let bc = match Compiler::new(&mut files).compile(&source_code, &args.path)? {
         (Some(bc), diagnostics) => {
             assert!(diagnostics.errors().is_empty());
 
@@ -53,10 +54,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     if args.debug {
-        println!("{ast:?}");
+        eprintln!("{bc:#?}");
     }
 
-    // Vm::<2>::new(bc).run();
+    match Vm::new(bc).run() {
+        Ok(()) => {}
+        Err(err) => eprintln!("runtime error: {err}"),
+    };
 
     Ok(())
 }

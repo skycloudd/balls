@@ -432,6 +432,14 @@ impl<'d> Typechecker<'d> {
                     },
                 }
             }
+            ast::Expr::Print(expr) => {
+                let expr = self.typecheck_expr(expr.unbox());
+
+                TypedExpr {
+                    ty: expr.0.ty.clone(),
+                    expr: Expr::Print(expr.boxed()),
+                }
+            }
         })
     }
 

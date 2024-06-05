@@ -1,12 +1,15 @@
-use balls_span::{Ctx, Span, Spanned};
+use balls_bytecode::Bytecode;
+use balls_span::{Ctx, Span};
 use camino::Utf8Path;
 use chumsky::prelude::*;
+use codegen::Codegen;
 use codespan_reporting::files::SimpleFiles;
 use diagnostics::Diagnostics;
 use lasso::ThreadedRodeo;
 use once_cell::sync::Lazy;
-use typecheck::{typed_ast::TypedAst, Typechecker};
+use typecheck::Typechecker;
 
+mod codegen;
 pub mod diagnostics;
 mod lexer;
 mod parser;
@@ -35,7 +38,7 @@ impl<'a, 'file, 'src> Compiler<'a, 'file, 'src> {
         &mut self,
         source_code: &'src str,
         filename: &'file Utf8Path,
-    ) -> std::io::Result<(Option<Spanned<TypedAst>>, Diagnostics)> {
+    ) -> std::io::Result<(Option<Bytecode>, Diagnostics)> {
         let file_id = self.files.add(filename, source_code);
 
         let file_ctx = Ctx(file_id);
@@ -85,6 +88,8 @@ impl<'a, 'file, 'src> Compiler<'a, 'file, 'src> {
             return Ok((None, diagnostics));
         }
 
-        Ok((typed_ast, diagnostics))
+        let bc = typed_ast.map(|typed_ast| Codegen::new().codegen(typed_ast.0));
+
+        Ok((bc, diagnostics))
     }
 }
