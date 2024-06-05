@@ -1,4 +1,7 @@
 use balls_span::Spanned;
+use lasso::Spur;
+
+use crate::RODEO;
 
 #[derive(Clone, Debug)]
 pub enum Type {
@@ -8,7 +11,7 @@ pub enum Type {
         parameters: Spanned<Vec<Spanned<Type>>>,
         return_ty: Spanned<Box<Type>>,
     },
-    UserDefined(&'static str),
+    UserDefined(Spur),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,20 +30,19 @@ impl core::fmt::Display for Type {
                 parameters,
                 return_ty,
             } => {
-                write!(f, "(")?;
                 write!(
                     f,
-                    "{}",
+                    "({}) :: {}",
                     parameters
                         .0
                         .iter()
                         .map(|arg| arg.0.to_string())
                         .collect::<Vec<_>>()
-                        .join(", ")
-                )?;
-                write!(f, ") :: {}", return_ty.0)
+                        .join(", "),
+                    return_ty.0
+                )
             }
-            Self::UserDefined(name) => write!(f, "{name}"),
+            Self::UserDefined(name) => write!(f, "{}", RODEO.resolve(name)),
         }
     }
 }

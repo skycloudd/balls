@@ -2,10 +2,12 @@ use super::{Diag, ErrorSpan};
 use crate::{
     parser::ast::{BinaryOp, UnaryOp},
     typecheck::types,
+    RODEO,
 };
 use balls_span::{Span, Spanned};
 use chumsky::error::{Rich, RichReason};
 use codespan_reporting::diagnostic::Severity;
+use lasso::Spur;
 
 #[derive(Clone, Debug)]
 pub enum Error {
@@ -19,7 +21,7 @@ pub enum Error {
         span: Span,
     },
     UndefinedName {
-        ident: &'static str,
+        ident: Spur,
         span: Span,
     },
     UnknownType {
@@ -75,7 +77,7 @@ impl Diag for Error {
             ),
             Self::Custom { message, span: _ } => message.clone(),
             Self::UndefinedName { ident, span: _ } => {
-                format!("Undefined name '{ident}'")
+                format!("Undefined name '{}'", RODEO.resolve(ident))
             }
             Self::UnknownType { span: _ } => "Unknown type".to_string(),
             Self::CannotBinaryOp {
@@ -129,7 +131,7 @@ impl Diag for Error {
             )],
             Self::Custom { message: _, span } => vec![ErrorSpan::Primary(None, *span)],
             Self::UndefinedName { ident, span } => vec![ErrorSpan::Primary(
-                Some(format!("undefined name '{ident}'")),
+                Some(format!("undefined name '{}'", RODEO.resolve(ident))),
                 *span,
             )],
             Self::UnknownType { span } => {
@@ -229,8 +231,8 @@ impl Diag for Error {
 }
 
 #[must_use]
-pub fn convert(error: &Rich<'_, String, Span>) -> Vec<Error> {
-    fn convert_inner(reason: &RichReason<String>, span: Span) -> Vec<Error> {
+pub fn convert(error: &Rich<String, Span, &str>) -> Vec<Error> {
+    fn convert_inner(reason: &RichReason<String, &str>, span: Span) -> Vec<Error> {
         match reason {
             RichReason::ExpectedFound { expected, found } => vec![Error::ExpectedFound {
                 expected: expected.iter().map(ToString::to_string).collect(),

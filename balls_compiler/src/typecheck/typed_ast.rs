@@ -1,14 +1,15 @@
 use super::types::Type;
 use balls_bytecode::{FloatTy, IntTy};
 use balls_span::Spanned;
+use lasso::Spur;
 
 #[derive(Clone, Debug)]
 pub struct TypedAst {
     pub functions: Vec<Spanned<Function>>,
 }
 
-#[derive(Clone, Debug)]
-pub struct Ident(pub &'static str);
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct Ident(pub Spur);
 
 #[derive(Clone, Debug)]
 pub struct Function {

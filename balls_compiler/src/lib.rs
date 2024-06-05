@@ -4,6 +4,9 @@ use camino::Utf8Path;
 use chumsky::prelude::*;
 use codespan_reporting::files::SimpleFiles;
 use diagnostics::Diagnostics;
+use lasso::ThreadedRodeo;
+use once_cell::sync::Lazy;
+use typecheck::Typechecker;
 
 pub mod diagnostics;
 mod lexer;
@@ -11,14 +14,16 @@ mod parser;
 mod scopes;
 mod typecheck;
 
+static RODEO: Lazy<ThreadedRodeo> = Lazy::new(ThreadedRodeo::new);
+
 #[derive(Debug)]
-pub struct Compiler<'a, 'file> {
-    files: &'a mut SimpleFiles<&'file Utf8Path, &'static str>,
+pub struct Compiler<'a, 'file, 'src> {
+    files: &'a mut SimpleFiles<&'file Utf8Path, &'src str>,
 }
 
-impl<'a, 'file> Compiler<'a, 'file> {
+impl<'a, 'file, 'src> Compiler<'a, 'file, 'src> {
     #[must_use]
-    pub fn new(files: &'a mut SimpleFiles<&'file Utf8Path, &'static str>) -> Self {
+    pub fn new(files: &'a mut SimpleFiles<&'file Utf8Path, &'src str>) -> Self {
         Self { files }
     }
 
@@ -29,11 +34,9 @@ impl<'a, 'file> Compiler<'a, 'file> {
     /// Returns an error on I/O errors.
     pub fn compile(
         &mut self,
-        source_code: &str,
+        source_code: &'src str,
         filename: &'file Utf8Path,
     ) -> std::io::Result<(Option<Bytecode>, Diagnostics)> {
-        let source_code: &'static str = Box::leak(source_code.into());
-
         let file_id = self.files.add(filename, source_code);
 
         let file_ctx = Ctx(file_id);
@@ -77,7 +80,7 @@ impl<'a, 'file> Compiler<'a, 'file> {
                 .flat_map(|err| diagnostics::error::convert(&err)),
         );
 
-        let typed_ast = ast.map(|ast| typecheck::typecheck(ast, &mut diagnostics));
+        let typed_ast = ast.map(|ast| Typechecker::new(&mut diagnostics).typecheck(ast));
 
         println!("{typed_ast:?}");
 

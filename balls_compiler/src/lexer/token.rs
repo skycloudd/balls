@@ -2,19 +2,19 @@ use balls_bytecode::{FloatTy, IntTy};
 use balls_span::Span;
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct Tokens(pub Vec<(Token, Span)>);
+pub struct Tokens<'src>(pub Vec<(Token<'src>, Span)>);
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Token {
+pub enum Token<'src> {
     Error,
-    Simple(Simple),
-    Parentheses(Tokens),
-    CurlyBraces(Tokens),
+    Simple(Simple<'src>),
+    Parentheses(Tokens<'src>),
+    CurlyBraces(Tokens<'src>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Simple {
-    Ident(&'static str),
+pub enum Simple<'src> {
+    Ident(&'src str),
     Integer(IntTy),
     Float(FloatTy),
     Boolean(bool),
@@ -51,7 +51,7 @@ pub enum Punc {
     GreaterThanEqual,
 }
 
-impl core::fmt::Display for Token {
+impl core::fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Error => write!(f, "<error>"),
@@ -82,7 +82,7 @@ impl core::fmt::Display for Token {
     }
 }
 
-impl core::fmt::Display for Simple {
+impl core::fmt::Display for Simple<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Ident(ident) => write!(f, "Ident<{ident}>"),

@@ -2,9 +2,11 @@ use crate::{
     diagnostics::{Diagnostics, Error},
     parser::ast,
     scopes::Scopes,
+    RODEO,
 };
 use balls_span::{MakeSpanned, Spanned};
 use chumsky::span::Span as _;
+use lasso::Spur;
 use rustc_hash::FxHashMap;
 use typed_ast::{Arg, BinaryOp, Expr, Function, Ident, PostfixOp, TypedAst, TypedExpr, UnaryOp};
 use types::{Primitive, Type};
@@ -12,20 +14,16 @@ use types::{Primitive, Type};
 mod typed_ast;
 pub mod types;
 
-pub fn typecheck(ast: Spanned<ast::Ast>, diagnostics: &mut Diagnostics) -> Spanned<TypedAst> {
-    Typechecker::new(diagnostics).typecheck(ast)
-}
-
-struct Typechecker<'d> {
+pub struct Typechecker<'d> {
     engine: Engine,
     diagnostics: &'d mut Diagnostics,
 
-    functions: FxHashMap<&'static str, TypeId>,
-    variables: Scopes<&'static str, TypeId>,
+    functions: FxHashMap<Ident, TypeId>,
+    variables: Scopes<Ident, TypeId>,
 }
 
 impl<'d> Typechecker<'d> {
-    fn new(diagnostics: &'d mut Diagnostics) -> Self {
+    pub fn new(diagnostics: &'d mut Diagnostics) -> Self {
         Self {
             engine: Engine::new(),
             diagnostics,
@@ -34,7 +32,7 @@ impl<'d> Typechecker<'d> {
         }
     }
 
-    fn typecheck(&mut self, ast: Spanned<ast::Ast>) -> Spanned<TypedAst> {
+    pub fn typecheck(&mut self, ast: Spanned<ast::Ast>) -> Spanned<TypedAst> {
         ast.map(|ast| {
             let mut typed_ast = TypedAst { functions: vec![] };
 
@@ -43,17 +41,18 @@ impl<'d> Typechecker<'d> {
                     parameters: function.0.parameters.as_ref().map(|parameters| {
                         parameters
                             .iter()
-                            .map(|arg| arg.0.ty.as_ref().map(lower_type))
+                            .map(|arg| arg.0.ty.as_ref().map(Self::lower_type))
                             .collect()
                     }),
-                    return_ty: function.0.return_ty.as_ref().map(lower_type).boxed(),
+                    return_ty: function.0.return_ty.as_ref().map(Self::lower_type).boxed(),
                 };
 
                 let signature_span = function.0.name.1.union(function.0.return_ty.1);
 
                 let ty = self.engine.insert_type(Spanned(ty, signature_span));
 
-                self.functions.insert(function.0.name.0 .0, ty);
+                self.functions
+                    .insert(Self::lower_ident(&function.0.name.0), ty);
             }
 
             for function in ast.functions {
@@ -69,23 +68,24 @@ impl<'d> Typechecker<'d> {
             self.variables.push_scope();
 
             for parameter in &function.parameters.0 {
-                let ty = self
-                    .engine
-                    .insert_type(parameter.0.ty.as_ref().map(lower_type));
+                let ty = parameter.0.ty.as_ref().map(Self::lower_type);
 
-                self.variables.insert(parameter.0.name.0 .0, ty);
+                let ty = self.engine.insert_type(ty);
+
+                self.variables
+                    .insert(Self::lower_ident(&parameter.0.name.0), ty);
             }
 
-            let name = function.name.as_ref().map(lower_ident);
+            let name = function.name.as_ref().map(Self::lower_ident);
 
             let parameters = function.parameters.as_ref().map(|parameters| {
                 parameters
                     .iter()
-                    .map(|arg| arg.as_ref().map(lower_arg))
+                    .map(|arg| arg.as_ref().map(Self::lower_arg))
                     .collect()
             });
 
-            let return_ty = function.return_ty.as_ref().map(lower_type);
+            let return_ty = function.return_ty.as_ref().map(Self::lower_type);
 
             let body = self.typecheck_expr(function.body);
 
@@ -113,8 +113,10 @@ impl<'d> Typechecker<'d> {
     fn typecheck_expr(&mut self, expr: Spanned<ast::Expr>) -> Spanned<TypedExpr> {
         expr.map_with_span(|expr, expr_span| match expr {
             ast::Expr::Ident(ident) => {
-                let ty = self.variables.get(&ident.0 .0).copied().unwrap_or_else(|| {
-                    self.functions.get(ident.0 .0).copied().unwrap_or_else(|| {
+                let ident = ident.as_ref().map(Self::lower_ident);
+
+                let ty = self.variables.get(&ident.0).copied().unwrap_or_else(|| {
+                    self.functions.get(&ident.0).copied().unwrap_or_else(|| {
                         self.diagnostics.add_error(Error::UndefinedName {
                             ident: ident.0 .0,
                             span: ident.1,
@@ -130,7 +132,7 @@ impl<'d> Typechecker<'d> {
 
                 TypedExpr {
                     ty,
-                    expr: Expr::Ident(ident.as_ref().map(lower_ident)),
+                    expr: Expr::Ident(ident),
                 }
             }
             ast::Expr::Integer(integer) => TypedExpr {
@@ -316,8 +318,10 @@ impl<'d> Typechecker<'d> {
                             ty: Type::Error.spanned(op.1),
                             expr: Expr::Postfix {
                                 expr: expr.boxed(),
-                                op: PostfixOp::FieldAccess(field_name.as_ref().map(lower_ident))
-                                    .spanned(op.1),
+                                op: PostfixOp::FieldAccess(
+                                    field_name.as_ref().map(Self::lower_ident),
+                                )
+                                .spanned(op.1),
                             },
                         }
                     }
@@ -325,25 +329,31 @@ impl<'d> Typechecker<'d> {
             }
         })
     }
-}
 
-fn lower_type(ty: &ast::Type) -> Type {
-    match ty.0 {
-        "int" => Type::Primitive(Primitive::Integer),
-        "float" => Type::Primitive(Primitive::Float),
-        "bool" => Type::Primitive(Primitive::Boolean),
-        other => Type::UserDefined(other),
+    fn lower_type(ty: &ast::Type) -> Type {
+        match ty.0 {
+            "int" => Type::Primitive(Primitive::Integer),
+            "float" => Type::Primitive(Primitive::Float),
+            "bool" => Type::Primitive(Primitive::Boolean),
+            other => {
+                let key = RODEO.get_or_intern(other);
+
+                Type::UserDefined(key)
+            }
+        }
     }
-}
 
-const fn lower_ident(ident: &ast::Ident) -> Ident {
-    Ident(ident.0)
-}
+    fn lower_ident(ident: &ast::Ident) -> Ident {
+        let key = RODEO.get_or_intern(ident.0);
 
-fn lower_arg(arg: &ast::Arg) -> Arg {
-    Arg {
-        name: arg.name.as_ref().map(lower_ident),
-        ty: arg.ty.as_ref().map(lower_type),
+        Ident(key)
+    }
+
+    fn lower_arg(arg: &ast::Arg) -> Arg {
+        Arg {
+            name: arg.name.as_ref().map(Self::lower_ident),
+            ty: arg.ty.as_ref().map(Self::lower_type),
+        }
     }
 }
 
@@ -446,7 +456,7 @@ impl Engine {
                     .spanned(parameters.1),
                 return_ty: self.reconstruct(*return_ty)?.boxed(),
             }),
-            TypeInfo::UserDefined(name) => Ok(Type::UserDefined(name)),
+            TypeInfo::UserDefined(name) => Ok(Type::UserDefined(*name)),
         }
         .map(|ty| ty.spanned(var.1))
     }
@@ -508,5 +518,5 @@ pub enum TypeInfo {
         parameters: Spanned<Vec<TypeId>>,
         return_ty: TypeId,
     },
-    UserDefined(&'static str),
+    UserDefined(Spur),
 }
