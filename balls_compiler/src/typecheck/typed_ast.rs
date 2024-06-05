@@ -8,7 +8,7 @@ pub struct TypedAst {
     pub functions: Vec<Spanned<Function>>,
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct Ident(pub Spur);
 
 #[derive(Clone, Debug)]
@@ -63,7 +63,7 @@ pub struct MatchArm {
     pub expr: Spanned<TypedExpr>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Pattern {
     Wildcard,
     Ident(Spanned<Ident>),
@@ -72,7 +72,7 @@ pub enum Pattern {
     Bool(bool),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum BinaryOp {
     Add,
     Subtract,
@@ -88,7 +88,7 @@ pub enum BinaryOp {
     NotEquals,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum UnaryOp {
     Negate,
     Not,

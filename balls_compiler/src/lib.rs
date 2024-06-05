@@ -1,12 +1,11 @@
-use balls_bytecode::Bytecode;
-use balls_span::{Ctx, Span};
+use balls_span::{Ctx, Span, Spanned};
 use camino::Utf8Path;
 use chumsky::prelude::*;
 use codespan_reporting::files::SimpleFiles;
 use diagnostics::Diagnostics;
 use lasso::ThreadedRodeo;
 use once_cell::sync::Lazy;
-use typecheck::Typechecker;
+use typecheck::{typed_ast::TypedAst, Typechecker};
 
 pub mod diagnostics;
 mod lexer;
@@ -36,8 +35,7 @@ impl<'a, 'file, 'src> Compiler<'a, 'file, 'src> {
         &mut self,
         source_code: &'src str,
         filename: &'file Utf8Path,
-        debug: bool,
-    ) -> std::io::Result<(Option<Bytecode>, Diagnostics)> {
+    ) -> std::io::Result<(Option<Spanned<TypedAst>>, Diagnostics)> {
         let file_id = self.files.add(filename, source_code);
 
         let file_ctx = Ctx(file_id);
@@ -83,14 +81,10 @@ impl<'a, 'file, 'src> Compiler<'a, 'file, 'src> {
 
         let typed_ast = ast.map(|ast| Typechecker::new(&mut diagnostics).typecheck(ast));
 
-        if debug {
-            println!("{typed_ast:?}");
-        }
-
         if !diagnostics.errors().is_empty() {
             return Ok((None, diagnostics));
         }
 
-        std::process::exit(1);
+        Ok((typed_ast, diagnostics))
     }
 }

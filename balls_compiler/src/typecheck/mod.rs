@@ -14,7 +14,7 @@ use typed_ast::{
 };
 use types::{Primitive, Type};
 
-mod typed_ast;
+pub mod typed_ast;
 pub mod types;
 
 pub struct Typechecker<'d> {
