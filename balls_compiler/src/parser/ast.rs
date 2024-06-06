@@ -1,5 +1,7 @@
-use balls_bytecode::{FloatTy, IntTy};
-use balls_span::Spanned;
+use crate::{
+    lexer::token::{FloatTy, IntTy},
+    span::Spanned,
+};
 
 #[derive(Clone, Debug)]
 pub struct Ast<'src> {
@@ -49,7 +51,6 @@ pub enum Expr<'src> {
         expr: Spanned<Box<Expr<'src>>>,
         arms: Spanned<Vec<Spanned<MatchArm<'src>>>>,
     },
-    Print(Spanned<Box<Expr<'src>>>),
 }
 
 #[derive(Clone, Debug)]

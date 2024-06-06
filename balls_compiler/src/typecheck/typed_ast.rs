@@ -1,6 +1,8 @@
 use super::types::Type;
-use balls_bytecode::{FloatTy, IntTy};
-use balls_span::Spanned;
+use crate::{
+    lexer::token::{FloatTy, IntTy},
+    span::Spanned,
+};
 use lasso::Spur;
 
 #[derive(Clone, Debug)]
@@ -55,7 +57,6 @@ pub enum Expr {
         expr: Spanned<Box<TypedExpr>>,
         arms: Spanned<Vec<Spanned<MatchArm>>>,
     },
-    Print(Spanned<Box<TypedExpr>>),
 }
 
 #[derive(Clone, Debug)]

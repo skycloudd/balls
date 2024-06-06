@@ -1,5 +1,4 @@
 use balls_compiler::{diagnostics::report, Compiler};
-use balls_vm::Vm;
 use camino::Utf8PathBuf;
 use clap::Parser;
 use codespan_reporting::{
@@ -56,11 +55,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if args.debug {
         eprintln!("{bc:#?}");
     }
-
-    match Vm::new(bc).run() {
-        Ok(()) => {}
-        Err(err) => eprintln!("runtime error: {err}"),
-    };
 
     Ok(())
 }

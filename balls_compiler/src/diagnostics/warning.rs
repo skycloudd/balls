@@ -1,8 +1,7 @@
 use super::Diag;
 use codespan_reporting::diagnostic::Severity;
 
-#[derive(Clone, Debug)]
-#[allow(missing_copy_implementations)] // todo: remove this
+#[derive(Clone, Copy, Debug)]
 pub enum Warning {}
 
 impl Diag for Warning {

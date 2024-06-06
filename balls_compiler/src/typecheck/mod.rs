@@ -2,9 +2,9 @@ use crate::{
     diagnostics::{Diagnostics, Error},
     parser::ast,
     scopes::Scopes,
+    span::{MakeSpanned as _, Spanned},
     RODEO,
 };
-use balls_span::{MakeSpanned, Spanned};
 use chumsky::span::Span as _;
 use lasso::Spur;
 use rustc_hash::FxHashMap;
@@ -50,12 +50,33 @@ impl<'d> Typechecker<'d> {
                     return_ty: function.0.return_ty.as_ref().map(Self::lower_type).boxed(),
                 };
 
+                if function.0.name.0 .0 == "main" {
+                    if let Type::Function {
+                        parameters,
+                        return_ty,
+                    } = ty.clone()
+                    {
+                        if !parameters.0.is_empty() {
+                            self.diagnostics
+                                .add_error(Error::MainFunctionHasParameters {
+                                    span: function.0.parameters.1,
+                                });
+                        }
+
+                        if return_ty.unbox().0 != Type::Primitive(Primitive::Integer) {
+                            self.diagnostics.add_error(Error::MainFunctionReturnType {
+                                span: function.0.return_ty.1,
+                            });
+                        }
+                    }
+                }
+
                 let signature_span = function.0.name.1.union(function.0.return_ty.1);
 
-                let ty = self.engine.insert_type(Spanned(ty, signature_span));
+                let ty_id = self.engine.insert_type(Spanned(ty, signature_span));
 
                 self.functions
-                    .insert(Self::lower_ident(&function.0.name.0), ty);
+                    .insert(Self::lower_ident(&function.0.name.0), ty_id);
             }
 
             for function in ast.functions {
@@ -432,14 +453,6 @@ impl<'d> Typechecker<'d> {
                     },
                 }
             }
-            ast::Expr::Print(expr) => {
-                let expr = self.typecheck_expr(expr.unbox());
-
-                TypedExpr {
-                    ty: expr.0.ty.clone(),
-                    expr: Expr::Print(expr.boxed()),
-                }
-            }
         })
     }
 
@@ -543,8 +556,8 @@ impl Engine {
             (a, b) if a == b => Ok(()),
 
             _ => Err(Error::TypeMismatch {
-                expected: self.typeinfo_to_type(var_a.clone()),
-                found: self.typeinfo_to_type(var_b.clone()),
+                expected: self.typeinfo_to_type(var_a.clone())?,
+                found: self.typeinfo_to_type(var_b.clone())?,
             }),
         }
     }
@@ -594,26 +607,30 @@ impl Engine {
         })
     }
 
-    #[allow(clippy::unwrap_used)]
-    fn typeinfo_to_type(&self, info: Spanned<TypeInfo>) -> Spanned<Type> {
-        info.map(|info| match info {
-            TypeInfo::Error | TypeInfo::Unknown => Type::Error,
-            TypeInfo::Ref(id) => self.reconstruct(id).unwrap().0,
-            TypeInfo::Primitive(primitive) => Type::Primitive(primitive),
-            TypeInfo::Function {
-                parameters,
-                return_ty,
-            } => Type::Function {
-                parameters: parameters.map(|parameters| {
-                    parameters
-                        .iter()
-                        .map(|arg| self.reconstruct(*arg).unwrap())
-                        .collect()
-                }),
-                return_ty: self.reconstruct(return_ty).unwrap().boxed(),
+    fn typeinfo_to_type(&self, info: Spanned<TypeInfo>) -> Result<Spanned<Type>, Error> {
+        Ok(Spanned(
+            match info.0 {
+                TypeInfo::Error | TypeInfo::Unknown => Type::Error,
+                TypeInfo::Ref(id) => self.reconstruct(id)?.0,
+                TypeInfo::Primitive(primitive) => Type::Primitive(primitive),
+                TypeInfo::Function {
+                    parameters,
+                    return_ty,
+                } => Type::Function {
+                    parameters: Spanned(
+                        parameters
+                            .0
+                            .iter()
+                            .map(|arg| self.reconstruct(*arg))
+                            .collect::<Result<_, _>>()?,
+                        parameters.1,
+                    ),
+                    return_ty: self.reconstruct(return_ty)?.boxed(),
+                },
+                TypeInfo::UserDefined(name) => Type::UserDefined(name),
             },
-            TypeInfo::UserDefined(name) => Type::UserDefined(name),
-        })
+            info.1,
+        ))
     }
 }
 
@@ -623,7 +640,6 @@ pub struct TypeId(usize);
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TypeInfo {
     Error,
-    #[allow(dead_code)]
     Unknown,
     Ref(TypeId),
     Primitive(Primitive),

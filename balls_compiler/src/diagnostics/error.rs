@@ -1,10 +1,10 @@
 use super::{Diag, ErrorSpan};
 use crate::{
     parser::ast::{BinaryOp, UnaryOp},
+    span::{Span, Spanned},
     typecheck::types,
     RODEO,
 };
-use balls_span::{Span, Spanned};
 use chumsky::error::{Rich, RichReason};
 use codespan_reporting::diagnostic::Severity;
 use lasso::Spur;
@@ -56,9 +56,14 @@ pub enum Error {
         feature: &'static str,
         span: Span,
     },
+    MainFunctionHasParameters {
+        span: Span,
+    },
+    MainFunctionReturnType {
+        span: Span,
+    },
 }
 
-#[allow(clippy::match_same_arms)]
 impl Diag for Error {
     fn message(&self) -> String {
         match self {
@@ -115,6 +120,12 @@ impl Diag for Error {
             }
             Self::FeatureNotImplemented { feature, span: _ } => {
                 format!("{feature} is not yet implemented")
+            }
+            Self::MainFunctionHasParameters { span: _ } => {
+                "Main function cannot have parameters".to_string()
+            }
+            Self::MainFunctionReturnType { span: _ } => {
+                "Main function must return an integer".to_string()
             }
         }
     }
@@ -175,7 +186,9 @@ impl Diag for Error {
             Self::CannotCall { ty, span } => {
                 vec![ErrorSpan::Primary(Some(format!("{}", ty.0)), *span)]
             }
-            Self::FeatureNotImplemented { feature: _, span } => {
+            Self::FeatureNotImplemented { feature: _, span }
+            | Self::MainFunctionHasParameters { span }
+            | Self::MainFunctionReturnType { span } => {
                 vec![ErrorSpan::Primary(None, *span)]
             }
         }
@@ -183,45 +196,22 @@ impl Diag for Error {
 
     fn notes(&self) -> Vec<String> {
         match self {
-            Self::ExpectedFound {
-                expected: _,
-                found: _,
-                span: _,
-            } => vec![],
-            Self::Custom {
-                message: _,
-                span: _,
-            } => vec![],
-            Self::UndefinedName { ident: _, span: _ } => vec![],
-            Self::UnknownType { span: _ } => vec![],
-            Self::CannotBinaryOp {
-                lhs_ty: _,
-                rhs_ty: _,
-                op: _,
-                span: _,
-            } => vec![],
-            Self::CannotUnaryOp {
-                expr_ty: _,
-                op: _,
-                span: _,
-            } => vec![],
-            Self::TypeMismatch {
-                expected: _,
-                found: _,
-            } => vec![],
-            Self::ArgumentCountMismatch {
-                expected: _,
-                found: _,
-                expected_span: _,
-                found_span: _,
-            } => vec![],
-            Self::CannotCall { ty: _, span: _ } => vec![],
             Self::FeatureNotImplemented {
                 feature: _,
                 span: _,
             } => {
                 vec!["This feature has not yet been implemented. It will be added in a future version.".to_string()]
             }
+            Self::MainFunctionHasParameters { span: _ } => vec![
+                "The main function is the entry point of the program and cannot have parameters."
+                    .to_string(),
+            ],
+            Self::MainFunctionReturnType { span: _ } => vec![
+                "The main function is the entry point of the program and must return an integer as exit code."
+                    .to_string(),
+                "Add `-> int` to the function signature.".to_string(),
+            ],
+            _ => vec![],
         }
     }
 

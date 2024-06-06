@@ -1,6 +1,8 @@
-use crate::lexer::token::{self, Kw, Punc, Token};
+use crate::{
+    lexer::token::{self, Kw, Punc, Token},
+    span::{Span, Spanned},
+};
 use ast::{Arg, Ast, BinaryOp, Expr, Function, MatchArm, Pattern, PostfixOp, UnaryOp};
-use balls_span::{Span, Spanned};
 use chumsky::{input::SpannedInput, prelude::*};
 
 pub mod ast;
@@ -142,14 +144,6 @@ fn expr_parser<'src: 'tok, 'tok>() -> impl Parser<
             })
             .boxed();
 
-        let print = expr
-        .clone()
-        .nested_in(select_ref! {
-            Token::CurlyBraces(tokens) = e => tokens.0.as_slice().spanned(Span::to_end(&e.span()))
-        })
-        .map_with(|expr, e| Spanned(Expr::Print(expr.boxed()), e.span()))
-        .boxed();
-
         let atom = choice((
             variable,
             boolean,
@@ -157,7 +151,6 @@ fn expr_parser<'src: 'tok, 'tok>() -> impl Parser<
             float,
             parenthesized_expr,
             match_expr,
-            print,
         ))
         .boxed();
 

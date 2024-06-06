@@ -1,5 +1,4 @@
-use balls_bytecode::{FloatTy, IntTy};
-use balls_span::Span;
+use crate::span::Span;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Tokens<'src>(pub Vec<(Token<'src>, Span)>);
@@ -54,6 +53,9 @@ pub enum Punc {
     LessThanEqual,
     GreaterThanEqual,
 }
+
+pub type IntTy = i32;
+pub type FloatTy = f32;
 
 impl core::fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

@@ -5,4 +5,4 @@ let fib (n: int) -> int =
     | _ -> fib(n - 1) + fib(n - 2)
 
 let main () -> int =
-    { fib(10) }
+    fib(10)

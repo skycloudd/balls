@@ -1,8 +1,7 @@
-use crate::RODEO;
-use balls_span::Spanned;
+use crate::{span::Spanned, RODEO};
 use lasso::Spur;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Type {
     Error,
     Primitive(Primitive),

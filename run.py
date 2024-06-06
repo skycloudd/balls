@@ -49,7 +49,7 @@ def print(text=""):
     PRINT(f"[run.py] {text}")
 
 
-def run_program(file) -> bytes:
+def run_program(file) -> subprocess.CompletedProcess[bytes]:
     process = subprocess.run(
         ["cargo", "run", "--", file], stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
@@ -82,25 +82,25 @@ def main():
 
         if isfile(program_file):
             process = run_program(program_file)
-            output = process.stdout
+            output = process.stdout.removesuffix(b"\n")
 
             check_file = join(DIRECTORY, program_dir, "check")
 
             if isfile(check_file):
                 with open(check_file, "r") as f:
-                    expected_output = f.read()
+                    expected_output = f.read().removesuffix("\n")
 
                 if output.decode() == expected_output:
                     print(f"{C_GREEN}`{program_dir}` passed.{C_END}")
                 else:
                     print(f"{C_RED}`{program_dir}` failed.{C_END}")
 
-                    if len(output) > 0:
+                    if len(output) > 0 or True:
                         print(f"{C_RED}Expected output:{C_END}")
-                        PRINT(f"{C_BLACK_2}{expected_output}{C_END}")
+                        PRINT(f"{C_BEIGE}{expected_output}{C_END}")
 
                         print(f"{C_RED}Actual output:{C_END}")
-                        PRINT(f"{C_BLACK_2}{output.decode()}{C_END}")
+                        PRINT(f"{C_VIOLET}{output.decode()}{C_END}")
 
                     exit_code = 1
             else:

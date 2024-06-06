@@ -1,11 +1,5 @@
 [workspace]
-members = [
-    "balls_driver",
-    "balls_span",
-    "balls_bytecode",
-    "balls_compiler",
-    "balls_vm",
-]
+members = ["balls_driver", "balls_compiler"]
 resolver = "2"
 
 [workspace.dependencies]

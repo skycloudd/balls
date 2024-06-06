@@ -1,6 +1,7 @@
-use balls_span::Span;
 use chumsky::{input::WithContext, prelude::*};
 use token::{Kw, Punc, Simple, Token, Tokens};
+
+use crate::span::Span;
 
 pub mod token;
 
