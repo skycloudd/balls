@@ -90,3 +90,10 @@ impl<'a, 'file, 'src> Compiler<'a, 'file, 'src> {
         Ok((typed_ast, diagnostics))
     }
 }
+
+fn join_comma(iter: impl IntoIterator<Item = impl core::fmt::Display>) -> String {
+    iter.into_iter()
+        .map(|item| item.to_string())
+        .collect::<Vec<_>>()
+        .join(", ")
+}

@@ -1,4 +1,4 @@
-use crate::span::Span;
+use crate::{join_comma, span::Span};
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Tokens<'src>(pub Vec<(Token<'src>, Span)>);
@@ -66,23 +66,13 @@ impl core::fmt::Display for Token<'_> {
                 write!(
                     f,
                     "({})",
-                    tokens
-                        .0
-                        .iter()
-                        .map(|(token, _)| token.to_string())
-                        .collect::<Vec<_>>()
-                        .join(" ")
+                    join_comma(tokens.0.iter().map(|(token, _)| token))
                 )
             }
             Self::CurlyBraces(tokens) => write!(
                 f,
                 "{{{}}}",
-                tokens
-                    .0
-                    .iter()
-                    .map(|(token, _)| token.to_string())
-                    .collect::<Vec<_>>()
-                    .join(" ")
+                join_comma(tokens.0.iter().map(|(token, _)| token))
             ),
         }
     }

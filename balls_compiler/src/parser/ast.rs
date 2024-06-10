@@ -1,4 +1,5 @@
 use crate::{
+    join_comma,
     lexer::token::{FloatTy, IntTy},
     span::Spanned,
 };
@@ -125,15 +126,7 @@ impl core::fmt::Display for UnaryOp {
 impl core::fmt::Display for PostfixOp<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Self::Call(args) => write!(
-                f,
-                "({})",
-                args.0
-                    .iter()
-                    .map(|_| "_".to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ),
+            Self::Call(args) => write!(f, "({})", join_comma(args.0.iter().map(|_| "_"))),
             Self::FieldAccess(ident) => write!(f, ".{}", ident.0 .0),
         }
     }

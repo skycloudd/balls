@@ -1,4 +1,4 @@
-use crate::{span::Spanned, RODEO};
+use crate::{join_comma, span::Spanned, RODEO};
 use lasso::Spur;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -31,12 +31,7 @@ impl core::fmt::Display for Type {
                 write!(
                     f,
                     "({}) :: {}",
-                    parameters
-                        .0
-                        .iter()
-                        .map(|arg| arg.0.to_string())
-                        .collect::<Vec<_>>()
-                        .join(", "),
+                    join_comma(parameters.0.iter().map(|arg| &arg.0)),
                     return_ty.0
                 )
             }
