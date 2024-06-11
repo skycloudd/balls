@@ -1,7 +1,6 @@
 # Balls
 
 [![Rust](https://github.com/skycloudd/balls/actions/workflows/rust.yml/badge.svg)](https://github.com/skycloudd/balls/actions/workflows/rust.yml)
-[![Run examples](https://github.com/skycloudd/balls/actions/workflows/run_examples.yml/badge.svg)](https://github.com/skycloudd/balls/actions/workflows/run_examples.yml)
 
 Balls (name subject to change) is a programming language
 
