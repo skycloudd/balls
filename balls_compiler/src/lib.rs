@@ -7,7 +7,6 @@ use once_cell::sync::Lazy;
 use span::{Ctx, Span, Spanned};
 use typecheck::{typed_ast::TypedAst, Typechecker};
 
-mod codegen;
 pub mod diagnostics;
 mod lexer;
 mod parser;
@@ -23,12 +22,13 @@ pub struct Compiler<'a, 'file, 'src> {
 }
 
 impl<'a, 'file, 'src> Compiler<'a, 'file, 'src> {
+    /// Creates a new [`Compiler`].
     #[must_use]
     pub fn new(files: &'a mut SimpleFiles<&'file Utf8Path, &'src str>) -> Self {
         Self { files }
     }
 
-    /// Compiles the given source code into bytecode.
+    /// Compiles the given source code into a [`TypedAst`].
     ///
     /// # Errors
     ///

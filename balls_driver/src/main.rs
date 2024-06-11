@@ -27,8 +27,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut files = SimpleFiles::new();
 
-    let bc = match Compiler::new(&mut files).compile(&source_code, &args.path)? {
-        (Some(bc), diagnostics) => {
+    let typed_ast = match Compiler::new(&mut files).compile(&source_code, &args.path)? {
+        (Some(typed_ast), diagnostics) => {
             assert!(diagnostics.errors().is_empty());
 
             for warning in diagnostics.warnings() {
@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 term::emit(&mut writer.lock(), &config, &files, &diag)?;
             }
 
-            bc
+            typed_ast
         }
         (None, diagnostics) => {
             assert!(!diagnostics.errors().is_empty());
@@ -53,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     if args.debug {
-        eprintln!("{bc:#?}");
+        eprintln!("{typed_ast:#?}");
     }
 
     Ok(())
