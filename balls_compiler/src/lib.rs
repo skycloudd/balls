@@ -3,12 +3,14 @@ use chumsky::prelude::*;
 use codespan_reporting::files::SimpleFiles;
 use diagnostics::Diagnostics;
 use lasso::ThreadedRodeo;
+use lowering::{mir::Mir, Lower};
 use once_cell::sync::Lazy;
-use span::{Ctx, Span, Spanned};
-use typecheck::{typed_ast::TypedAst, Typechecker};
+use span::{Ctx, Span};
+use typecheck::Typechecker;
 
 pub mod diagnostics;
 mod lexer;
+mod lowering;
 mod parser;
 mod scopes;
 mod span;
@@ -33,11 +35,12 @@ impl<'a, 'file, 'src> Compiler<'a, 'file, 'src> {
     /// # Errors
     ///
     /// Returns an error on I/O errors.
+    #[allow(clippy::missing_panics_doc)]
     pub fn compile(
         &mut self,
         source_code: &'src str,
         filename: &'file Utf8Path,
-    ) -> std::io::Result<(Option<Spanned<TypedAst>>, Diagnostics)> {
+    ) -> std::io::Result<(Option<Mir>, Diagnostics)> {
         let file_id = self.files.add(filename, source_code);
 
         let file_ctx = Ctx(file_id);
@@ -87,7 +90,11 @@ impl<'a, 'file, 'src> Compiler<'a, 'file, 'src> {
             return Ok((None, diagnostics));
         }
 
-        Ok((typed_ast, diagnostics))
+        #[allow(clippy::unwrap_used)]
+        let typed_ast = typed_ast.unwrap();
+        let mir = Lower::new().lower(typed_ast);
+
+        Ok((Some(mir), diagnostics))
     }
 }
 

@@ -350,6 +350,10 @@ impl<'d> Typechecker<'d> {
 
                 let result_pattern_ty = self.engine.insert_type(expr.clone().map(|expr| expr.ty.0));
 
+                if arms.0.is_empty() {
+                    todo!("match expression must have at least one arm");
+                }
+
                 let arms = arms.map(|arms| {
                     arms.into_iter()
                         .map(|arm| {

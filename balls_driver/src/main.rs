@@ -53,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     if args.debug {
-        eprintln!("{typed_ast:#?}");
+        println!("{typed_ast:#?}");
     }
 
     Ok(())
