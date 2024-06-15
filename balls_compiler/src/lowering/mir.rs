@@ -1,5 +1,8 @@
-use crate::lexer::token::{FloatTy, IntTy};
-use crate::typecheck::types::Type;
+use crate::{
+    lexer::token::{FloatTy, IntTy},
+    typecheck::types::Type,
+    RODEO,
+};
 use lasso::Spur;
 
 #[derive(Clone, Debug)]
@@ -7,8 +10,16 @@ pub struct Mir {
     pub functions: Vec<Function>,
 }
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Ident(pub Spur);
+
+impl core::fmt::Debug for Ident {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_tuple("Ident")
+            .field(&RODEO.resolve(&self.0))
+            .finish()
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Function {
@@ -50,6 +61,16 @@ pub enum Expr {
         expr: Box<TypedExpr>,
         op: PostfixOp,
     },
+    Match {
+        expr: Box<TypedExpr>,
+        arms: Vec<MatchArm>,
+    },
+}
+
+#[derive(Clone, Debug)]
+pub struct MatchArm {
+    pub equal_to: Option<TypedExpr>,
+    pub expr: TypedExpr,
 }
 
 #[derive(Clone, Copy, Debug)]

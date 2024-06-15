@@ -61,6 +61,8 @@ def run_program(file) -> subprocess.CompletedProcess[bytes]:
         print(f"{C_RED}Stderr:{C_END}")
         stderr = process.stderr.decode().removesuffix("\n")
         PRINT(f"{C_BLACK_2}{stderr}{C_END}")
+    else:
+        print(f"{C_GREEN}`{file}` successfully compiled{C_END}")
 
     return process
 
@@ -73,6 +75,7 @@ def main():
     print(f"Running {len(dirs_in_directory)} programs in `{DIRECTORY}` directory...")
 
     exit_code = 0
+    failed_programs = []
 
     for program_dir in dirs_in_directory:
         print()
@@ -91,9 +94,15 @@ def main():
                     expected_output = f.read().removesuffix("\n")
 
                 if output.decode() == expected_output:
-                    print(f"{C_GREEN}`{program_dir}` passed.{C_END}")
+                    print(
+                        f"{C_GREEN}`{program_dir}` matched the expected output.{C_END}"
+                    )
                 else:
-                    print(f"{C_RED}`{program_dir}` failed.{C_END}")
+                    failed_programs.append(program_dir)
+
+                    print(
+                        f"{C_RED}`{program_dir}` didnt match the expected output.{C_END}"
+                    )
 
                     if len(output) > 0 or True:
                         print(f"{C_RED}Expected output:{C_END}")
@@ -115,8 +124,12 @@ def main():
     print(
         f"{C_GREEN}All programs passed.{C_END}"
         if exit_code == 0
-        else f"{C_RED}Some programs failed.{C_END}"
+        else f"{C_RED}{len(failed_programs)} of {len(dirs_in_directory)} programs failed.{C_END}"
     )
+    if len(failed_programs) != 0:
+        print(f"{C_RED}Failed programs:{C_END}")
+        for program in failed_programs:
+            print(f"{C_RED} - {program}{C_END}")
     print(
         f"{C_GREEN if exit_code == 0 else C_RED}Exiting with code {exit_code}.{C_END}"
     )

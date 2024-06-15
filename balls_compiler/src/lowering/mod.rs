@@ -1,31 +1,26 @@
-#![allow(clippy::unused_self)]
 use crate::{
     span::Spanned,
-    typecheck::typed_ast::{self, TypedAst},
+    typecheck::typed_ast::{self, Pattern, TypedAst},
 };
-use mir::{Arg, BinaryOp, Expr, Function, Ident, Mir, PostfixOp, TypedExpr, UnaryOp};
+use mir::{Arg, BinaryOp, Expr, Function, Ident, MatchArm, Mir, PostfixOp, TypedExpr, UnaryOp};
 
 pub mod mir;
 
 pub struct Lower {}
 
 impl Lower {
-    pub const fn new() -> Self {
-        Self {}
-    }
-
-    pub fn lower(&mut self, typed_ast: Spanned<TypedAst>) -> Mir {
+    pub fn lower(typed_ast: Spanned<TypedAst>) -> Mir {
         let functions = typed_ast
             .0
             .functions
             .into_iter()
-            .map(|function| self.lower_function(function.0))
+            .map(|function| Self::lower_function(function.0))
             .collect();
 
         Mir { functions }
     }
 
-    fn lower_function(&self, function: typed_ast::Function) -> Function {
+    fn lower_function(function: typed_ast::Function) -> Function {
         let name = function.name.map(Self::lower_ident).0;
 
         let parameters = function
@@ -85,10 +80,47 @@ impl Lower {
                         op: Self::lower_postfix_op(op.0),
                     }
                 }
-                typed_ast::Expr::Match { expr: _, arms: _ } => {
-                    todo!("lowering match expr to mir")
+                typed_ast::Expr::Match {
+                    expr: match_expr,
+                    arms,
+                } => {
+                    let match_expr = match_expr.unbox().map(Self::lower_expr).0;
+
+                    let arms = arms
+                        .0
+                        .into_iter()
+                        .map(|arm| {
+                            let equal_to =
+                                Self::pattern_expr(arm.0.pattern.0).map(|pattern_expr| TypedExpr {
+                                    ty: match_expr.ty.clone(),
+                                    expr: pattern_expr,
+                                });
+
+                            let arm_expr = Self::lower_expr(arm.0.expr.0);
+
+                            MatchArm {
+                                equal_to,
+                                expr: arm_expr,
+                            }
+                        })
+                        .collect();
+
+                    Expr::Match {
+                        expr: Box::new(match_expr),
+                        arms,
+                    }
                 }
             },
+        }
+    }
+
+    const fn pattern_expr(pattern: typed_ast::Pattern) -> Option<Expr> {
+        match pattern {
+            Pattern::Wildcard => None,
+            Pattern::Ident(name) => Some(Expr::Ident(Self::lower_ident(name.0))),
+            Pattern::Int(value) => Some(Expr::Integer(value)),
+            Pattern::Float(value) => Some(Expr::Float(value)),
+            Pattern::Bool(value) => Some(Expr::Boolean(value)),
         }
     }
 

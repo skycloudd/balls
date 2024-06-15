@@ -1,9 +1,8 @@
+use crate::span::Span;
 use chumsky::span::Span as _;
 use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 pub use error::Error;
 pub use warning::Warning;
-
-use crate::span::Span;
 
 pub mod error;
 pub mod warning;

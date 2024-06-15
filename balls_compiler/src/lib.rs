@@ -24,18 +24,11 @@ pub struct Compiler<'a, 'file, 'src> {
 }
 
 impl<'a, 'file, 'src> Compiler<'a, 'file, 'src> {
-    /// Creates a new [`Compiler`].
     #[must_use]
     pub fn new(files: &'a mut SimpleFiles<&'file Utf8Path, &'src str>) -> Self {
         Self { files }
     }
 
-    /// Compiles the given source code into a [`TypedAst`].
-    ///
-    /// # Errors
-    ///
-    /// Returns an error on I/O errors.
-    #[allow(clippy::missing_panics_doc)]
     pub fn compile(
         &mut self,
         source_code: &'src str,
@@ -90,9 +83,9 @@ impl<'a, 'file, 'src> Compiler<'a, 'file, 'src> {
             return Ok((None, diagnostics));
         }
 
-        #[allow(clippy::unwrap_used)]
-        let typed_ast = typed_ast.unwrap();
-        let mir = Lower::new().lower(typed_ast);
+        #[allow(clippy::expect_used)]
+        let typed_ast = typed_ast.expect("typed ast should exist");
+        let mir = Lower::lower(typed_ast);
 
         Ok((Some(mir), diagnostics))
     }
