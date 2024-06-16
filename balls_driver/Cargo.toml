@@ -8,6 +8,9 @@ balls_compiler = { path = "../balls_compiler" }
 camino = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 codespan-reporting = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-tree = { workspace = true }
 
 [lints]
 workspace = true

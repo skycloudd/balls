@@ -8,6 +8,8 @@ use codespan_reporting::{
         termcolor::{ColorChoice, StandardStream},
     },
 };
+use tracing_subscriber::{layer::SubscriberExt, Registry};
+use tracing_tree::HierarchicalLayer;
 
 #[derive(Parser)]
 struct Args {
@@ -18,6 +20,16 @@ struct Args {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let subscriber = Registry::default().with(
+        HierarchicalLayer::default()
+            // .with_indent_lines(true)
+            .with_targets(true)
+            .with_deferred_spans(true)
+            .with_higher_precision(true),
+    );
+
+    tracing::subscriber::set_global_default(subscriber).unwrap();
+
     let args = Args::parse();
 
     let source_code = std::fs::read_to_string(&args.path)?;

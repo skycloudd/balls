@@ -83,7 +83,6 @@ impl<'a, 'file, 'src> Compiler<'a, 'file, 'src> {
             return Ok((None, diagnostics));
         }
 
-        #[allow(clippy::expect_used)]
         let typed_ast = typed_ast.expect("typed ast should exist");
         let mir = Lower::lower(typed_ast);
 

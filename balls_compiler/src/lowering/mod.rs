@@ -1,6 +1,7 @@
 use crate::{
     span::Spanned,
     typecheck::typed_ast::{self, Pattern, TypedAst},
+    RODEO,
 };
 use mir::{Arg, BinaryOp, Expr, Function, Ident, MatchArm, Mir, PostfixOp, TypedExpr, UnaryOp};
 
@@ -9,6 +10,7 @@ pub mod mir;
 pub struct Lower {}
 
 impl Lower {
+    #[tracing::instrument(skip_all)]
     pub fn lower(typed_ast: Spanned<TypedAst>) -> Mir {
         let functions = typed_ast
             .0
@@ -20,6 +22,7 @@ impl Lower {
         Mir { functions }
     }
 
+    #[tracing::instrument(name = "lowering function", skip_all, fields(entity = RODEO.resolve(&function.name.0 .0)))]
     fn lower_function(function: typed_ast::Function) -> Function {
         let name = function.name.map(Self::lower_ident).0;
 
@@ -114,7 +117,7 @@ impl Lower {
         }
     }
 
-    const fn pattern_expr(pattern: typed_ast::Pattern) -> Option<Expr> {
+    fn pattern_expr(pattern: typed_ast::Pattern) -> Option<Expr> {
         match pattern {
             Pattern::Wildcard => None,
             Pattern::Ident(name) => Some(Expr::Ident(Self::lower_ident(name.0))),
@@ -122,6 +125,7 @@ impl Lower {
             Pattern::Float(value) => Some(Expr::Float(value)),
             Pattern::Bool(value) => Some(Expr::Boolean(value)),
         }
+        .inspect(|expr| tracing::trace!("pattern {:?} => {:?}", pattern, expr))
     }
 
     fn lower_postfix_op(op: typed_ast::PostfixOp) -> PostfixOp {

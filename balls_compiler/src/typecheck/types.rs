@@ -30,7 +30,7 @@ impl core::fmt::Display for Type {
             } => {
                 write!(
                     f,
-                    "({}) :: {}",
+                    "({}) -> {}",
                     join_comma(parameters.0.iter().map(|arg| &arg.0)),
                     return_ty.0
                 )

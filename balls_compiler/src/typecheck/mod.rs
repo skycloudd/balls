@@ -1,8 +1,9 @@
 use crate::{
     diagnostics::{Diagnostics, Error},
+    join_comma,
     parser::ast,
     scopes::Scopes,
-    span::{MakeSpanned as _, Spanned},
+    span::{MakeSpanned as _, Span, Spanned},
     RODEO,
 };
 use chumsky::span::Span as _;
@@ -35,6 +36,7 @@ impl<'d> Typechecker<'d> {
         }
     }
 
+    #[tracing::instrument(skip_all)]
     pub fn typecheck(&mut self, ast: Spanned<ast::Ast>) -> Spanned<TypedAst> {
         ast.map(|ast| {
             let mut typed_ast = TypedAst { functions: vec![] };
@@ -87,6 +89,7 @@ impl<'d> Typechecker<'d> {
         })
     }
 
+    #[tracing::instrument(name = "typechecking function", skip_all, fields(entity = function.0.name.0 .0))]
     fn typecheck_function(&mut self, function: Spanned<ast::Function>) -> Spanned<Function> {
         function.map(|function| {
             self.variables.push_scope();
@@ -106,10 +109,16 @@ impl<'d> Typechecker<'d> {
                 parameters
                     .iter()
                     .map(|arg| arg.as_ref().map(Self::lower_arg))
-                    .collect()
+                    .collect::<Vec<_>>()
             });
 
             let return_ty = function.return_ty.as_ref().map(Self::lower_type);
+
+            tracing::trace!(
+                "function type is ({}) -> {}",
+                join_comma(parameters.0.iter().map(|arg| &arg.0.ty.0)),
+                return_ty.0
+            );
 
             let body = self.typecheck_expr(function.body);
 
@@ -133,7 +142,7 @@ impl<'d> Typechecker<'d> {
         })
     }
 
-    #[allow(clippy::too_many_lines)]
+    #[tracing::instrument(name = "typechecking expression", skip_all)]
     fn typecheck_expr(&mut self, expr: Spanned<ast::Expr>) -> Spanned<TypedExpr> {
         expr.map_with_span(|expr, expr_span| match expr {
             ast::Expr::Ident(ident) => {
@@ -178,46 +187,13 @@ impl<'d> Typechecker<'d> {
                 let lhs_ty = self.engine.insert_type(lhs.0.ty.clone());
                 let rhs_ty = self.engine.insert_type(rhs.0.ty.clone());
 
-                self.engine.unify(lhs_ty, rhs_ty).unwrap_or_else(|err| {
-                    self.diagnostics.add_error(err);
-                });
+                let expr_ty = self.bin_op_type(op, lhs.clone(), rhs.clone(), expr_span);
 
-                let expr_ty = {
-                    use ast::BinaryOp::{
-                        Add, Divide, Equals, GreaterThan, GreaterThanEqual, LessThan,
-                        LessThanEqual, Multiply, NotEquals, Subtract,
-                    };
-                    use Primitive::{Boolean, Float, Integer};
-                    use Type::Primitive as Pr;
-
-                    match (&op.0, (&lhs.0.ty.0, &rhs.0.ty.0)) {
-                        (_, (Type::Error, _) | (_, Type::Error)) => Type::Error,
-                        (Add | Subtract | Multiply | Divide, (Pr(Integer), Pr(Integer))) => {
-                            Type::Primitive(Primitive::Integer)
-                        }
-                        (Add | Subtract | Multiply | Divide, (Pr(Float), Pr(Float))) => {
-                            Type::Primitive(Primitive::Float)
-                        }
-                        (
-                            LessThan | GreaterThan | LessThanEqual | GreaterThanEqual | Equals
-                            | NotEquals,
-                            (Pr(Integer), Pr(Integer)) | (Pr(Float), Pr(Float)),
-                        ) => Type::Primitive(Primitive::Boolean),
-                        (Equals | NotEquals, (Pr(Boolean), Pr(Boolean))) => {
-                            Type::Primitive(Primitive::Boolean)
-                        }
-                        _ => {
-                            self.diagnostics.add_error(Error::CannotBinaryOp {
-                                lhs_ty: lhs.0.ty.clone().map_span(|_| lhs.1),
-                                rhs_ty: rhs.0.ty.clone().map_span(|_| rhs.1),
-                                op,
-                                span: expr_span,
-                            });
-
-                            Type::Error
-                        }
-                    }
-                };
+                if expr_ty != Type::Error {
+                    self.engine.unify(lhs_ty, rhs_ty).unwrap_or_else(|err| {
+                        self.diagnostics.add_error(err);
+                    });
+                }
 
                 TypedExpr {
                     ty: expr_ty.spanned(expr_span),
@@ -231,27 +207,7 @@ impl<'d> Typechecker<'d> {
             ast::Expr::Unary { op, expr } => {
                 let expr = self.typecheck_expr(expr.unbox());
 
-                let expr_ty = match (op.0, &expr.0.ty.0) {
-                    (_, Type::Error) => Type::Error,
-                    (ast::UnaryOp::Negate, Type::Primitive(Primitive::Integer)) => {
-                        Type::Primitive(Primitive::Integer)
-                    }
-                    (ast::UnaryOp::Negate, Type::Primitive(Primitive::Float)) => {
-                        Type::Primitive(Primitive::Float)
-                    }
-                    (ast::UnaryOp::Not, Type::Primitive(Primitive::Boolean)) => {
-                        Type::Primitive(Primitive::Boolean)
-                    }
-                    _ => {
-                        self.diagnostics.add_error(Error::CannotUnaryOp {
-                            expr_ty: expr.0.ty.clone(),
-                            op,
-                            span: expr_span,
-                        });
-
-                        Type::Error
-                    }
-                };
+                let expr_ty = self.unary_op_type(op, expr.clone(), expr_span);
 
                 TypedExpr {
                     ty: expr_ty.spanned(expr_span),
@@ -265,197 +221,294 @@ impl<'d> Typechecker<'d> {
                 let expr = self.typecheck_expr(expr.unbox());
 
                 match op.0 {
-                    ast::PostfixOp::Call(args) => {
-                        let args = args.map(|args| {
-                            args.into_iter()
-                                .map(|arg| self.typecheck_expr(arg))
-                                .collect::<Vec<_>>()
-                        });
-
-                        let return_ty = match &expr.0.ty.0 {
-                            Type::Function {
-                                parameters,
-                                return_ty,
-                            } => {
-                                if parameters.0.len() != args.0.len() {
-                                    self.diagnostics.add_error(Error::ArgumentCountMismatch {
-                                        expected: parameters.0.len(),
-                                        found: args.0.len(),
-                                        expected_span: parameters.1,
-                                        found_span: args.1,
-                                    });
-
-                                    return TypedExpr {
-                                        ty: return_ty.clone().unbox(),
-                                        expr: Expr::Error,
-                                    };
-                                }
-
-                                for (arg, param) in
-                                    args.0.clone().into_iter().zip(parameters.0.clone())
-                                {
-                                    let arg_ty = self.engine.insert_type(arg.0.ty);
-
-                                    let param_ty = self.engine.insert_type(param);
-
-                                    self.engine.unify(param_ty, arg_ty).unwrap_or_else(|err| {
-                                        self.diagnostics.add_error(err);
-                                    });
-                                }
-
-                                return_ty.clone().unbox()
-                            }
-                            Type::Error => Type::Error.spanned(expr.0.ty.1),
-                            _ => {
-                                self.diagnostics.add_error(Error::CannotCall {
-                                    ty: expr.0.ty.clone(),
-                                    span: expr.1,
-                                });
-
-                                Type::Error.spanned(expr.0.ty.1)
-                            }
-                        };
-
-                        TypedExpr {
-                            ty: return_ty,
-                            expr: Expr::Postfix {
-                                expr: expr.boxed(),
-                                op: PostfixOp::Call(args).spanned(op.1),
-                            },
-                        }
-                    }
+                    ast::PostfixOp::Call(args) => self.typecheck_call(expr, args, op.1),
                     ast::PostfixOp::FieldAccess(field_name) => {
-                        self.diagnostics.add_error(Error::FeatureNotImplemented {
-                            feature: "field access",
-                            span: op.1,
-                        });
-
-                        TypedExpr {
-                            ty: Type::Error.spanned(op.1),
-                            expr: Expr::Postfix {
-                                expr: expr.boxed(),
-                                op: PostfixOp::FieldAccess(
-                                    field_name.as_ref().map(Self::lower_ident),
-                                )
-                                .spanned(op.1),
-                            },
-                        }
+                        self.typecheck_field_access(expr, &field_name, op.1)
                     }
                 }
             }
-            ast::Expr::Match { expr, arms } => {
-                let expr = self.typecheck_expr(expr.unbox());
+            ast::Expr::Match { expr, arms } => self.typecheck_match(expr.unbox(), arms, expr_span),
+        })
+    }
 
-                let result_expr_ty = self.engine.insert(TypeInfo::Unknown.spanned(expr_span));
+    fn bin_op_type(
+        &mut self,
+        op: Spanned<ast::BinaryOp>,
+        lhs: Spanned<TypedExpr>,
+        rhs: Spanned<TypedExpr>,
+        expr_span: Span,
+    ) -> Type {
+        use ast::BinaryOp::{
+            Add, Divide, Equals, GreaterThan, GreaterThanEqual, LessThan, LessThanEqual, Multiply,
+            NotEquals, Subtract,
+        };
+        use Primitive::{Boolean, Float, Integer};
+        use Type::Primitive as Pr;
 
-                let result_pattern_ty = self.engine.insert_type(expr.clone().map(|expr| expr.ty.0));
+        match (&op.0, (&lhs.0.ty.0, &rhs.0.ty.0)) {
+            (_, (Type::Error, _) | (_, Type::Error)) => Type::Error,
 
-                if arms.0.is_empty() {
-                    todo!("match expression must have at least one arm");
-                }
+            // arithmetic on (int, int) -> int
+            (Add | Subtract | Multiply | Divide, (Pr(Integer), Pr(Integer))) => {
+                Pr(Primitive::Integer)
+            }
 
-                let arms = arms.map(|arms| {
-                    arms.into_iter()
-                        .map(|arm| {
-                            arm.map(|arm| {
-                                self.variables.push_scope();
+            // arithmetic on (float, float) -> float
+            (Add | Subtract | Multiply | Divide, (Pr(Float), Pr(Float))) => Pr(Primitive::Float),
 
-                                if let ast::Pattern::Ident(ident) = &arm.pattern.0 {
-                                    self.variables.insert(
-                                        Self::lower_ident(&ident.0),
-                                        self.engine.insert_type(
-                                            expr.0.ty.clone().map_span(|_| arm.expr.1),
-                                        ),
-                                    );
-                                }
+            // comparison on (int, int) -> bool
+            // and
+            // comparison on (float, float) -> bool
+            // and
+            // comparison on (bool, bool) -> bool
+            (
+                LessThan | GreaterThan | LessThanEqual | GreaterThanEqual | Equals | NotEquals,
+                (Pr(Integer), Pr(Integer)) | (Pr(Float), Pr(Float)),
+            )
+            | (Equals | NotEquals, (Pr(Boolean), Pr(Boolean))) => Pr(Primitive::Boolean),
 
-                                let arm_expr = self.typecheck_expr(arm.expr);
-
-                                self.variables.pop_scope();
-
-                                let arm_ty = self.engine.insert_type(arm_expr.0.ty.clone());
-
-                                self.engine
-                                    .unify(result_expr_ty, arm_ty)
-                                    .unwrap_or_else(|err| {
-                                        self.diagnostics.add_error(err);
-                                    });
-
-                                let pattern =
-                                    arm.pattern
-                                        .map_with_span(|pattern, pat_span| match pattern {
-                                            ast::Pattern::Wildcard => Pattern::Wildcard,
-                                            ast::Pattern::Ident(ident) => Pattern::Ident(
-                                                ident.as_ref().map(Self::lower_ident),
-                                            ),
-                                            ast::Pattern::Int(value) => {
-                                                let int_ty = self.engine.insert(
-                                                    TypeInfo::Primitive(Primitive::Integer)
-                                                        .spanned(pat_span),
-                                                );
-
-                                                self.engine
-                                                    .unify(result_pattern_ty, int_ty)
-                                                    .unwrap_or_else(|err| {
-                                                        self.diagnostics.add_error(err);
-                                                    });
-
-                                                Pattern::Int(value)
-                                            }
-                                            ast::Pattern::Float(value) => {
-                                                let float_ty = self.engine.insert(
-                                                    TypeInfo::Primitive(Primitive::Float)
-                                                        .spanned(pat_span),
-                                                );
-
-                                                self.engine
-                                                    .unify(result_pattern_ty, float_ty)
-                                                    .unwrap_or_else(|err| {
-                                                        self.diagnostics.add_error(err);
-                                                    });
-
-                                                Pattern::Float(value)
-                                            }
-                                            ast::Pattern::Bool(value) => {
-                                                let bool_ty = self.engine.insert(
-                                                    TypeInfo::Primitive(Primitive::Boolean)
-                                                        .spanned(pat_span),
-                                                );
-
-                                                self.engine
-                                                    .unify(result_pattern_ty, bool_ty)
-                                                    .unwrap_or_else(|err| {
-                                                        self.diagnostics.add_error(err);
-                                                    });
-
-                                                Pattern::Bool(value)
-                                            }
-                                        });
-
-                                MatchArm {
-                                    pattern,
-                                    expr: arm_expr,
-                                }
-                            })
-                        })
-                        .collect()
+            _ => {
+                self.diagnostics.add_error(Error::CannotBinaryOp {
+                    lhs_ty: lhs.0.ty.map_span(|_| lhs.1),
+                    rhs_ty: rhs.0.ty.map_span(|_| rhs.1),
+                    op,
+                    span: expr_span,
                 });
 
-                let result_ty = self
-                    .engine
-                    .reconstruct(result_expr_ty)
-                    .unwrap_or_else(|err| {
-                        self.diagnostics.add_error(err);
-                        Type::Error.spanned(expr_span)
+                Type::Error
+            }
+        }
+    }
+
+    fn unary_op_type(
+        &mut self,
+        op: Spanned<ast::UnaryOp>,
+        expr: Spanned<TypedExpr>,
+        expr_span: Span,
+    ) -> Type {
+        match (op.0, &expr.0.ty.0) {
+            (_, Type::Error) => Type::Error,
+            (ast::UnaryOp::Negate, Type::Primitive(Primitive::Integer)) => {
+                Type::Primitive(Primitive::Integer)
+            }
+            (ast::UnaryOp::Negate, Type::Primitive(Primitive::Float)) => {
+                Type::Primitive(Primitive::Float)
+            }
+            (ast::UnaryOp::Not, Type::Primitive(Primitive::Boolean)) => {
+                Type::Primitive(Primitive::Boolean)
+            }
+            _ => {
+                self.diagnostics.add_error(Error::CannotUnaryOp {
+                    expr_ty: expr.0.ty,
+                    op,
+                    span: expr_span,
+                });
+
+                Type::Error
+            }
+        }
+    }
+
+    fn typecheck_call(
+        &mut self,
+        expr: Spanned<TypedExpr>,
+        args: Spanned<Vec<Spanned<ast::Expr>>>,
+        op_span: Span,
+    ) -> TypedExpr {
+        let args = args.map(|args| {
+            args.into_iter()
+                .map(|arg| self.typecheck_expr(arg))
+                .collect::<Vec<_>>()
+        });
+
+        let return_ty = match &expr.0.ty.0 {
+            Type::Function {
+                parameters,
+                return_ty,
+            } => {
+                if parameters.0.len() != args.0.len() {
+                    self.diagnostics.add_error(Error::ArgumentCountMismatch {
+                        expected: parameters.0.len(),
+                        found: args.0.len(),
+                        expected_span: parameters.1,
+                        found_span: args.1,
                     });
 
-                TypedExpr {
-                    ty: result_ty,
-                    expr: Expr::Match {
-                        expr: expr.boxed(),
-                        arms,
-                    },
+                    return TypedExpr {
+                        ty: return_ty.clone().unbox(),
+                        expr: Expr::Error,
+                    };
                 }
+
+                for (arg, param) in args.0.clone().into_iter().zip(parameters.0.clone()) {
+                    let arg_ty = self.engine.insert_type(arg.0.ty);
+
+                    let param_ty = self.engine.insert_type(param);
+
+                    self.engine.unify(param_ty, arg_ty).unwrap_or_else(|err| {
+                        self.diagnostics.add_error(err);
+                    });
+                }
+
+                return_ty.clone().unbox()
+            }
+            Type::Error => Type::Error.spanned(expr.0.ty.1),
+            _ => {
+                self.diagnostics.add_error(Error::CannotCall {
+                    ty: expr.0.ty.clone(),
+                    span: expr.1,
+                });
+
+                Type::Error.spanned(expr.0.ty.1)
+            }
+        };
+
+        TypedExpr {
+            ty: return_ty,
+            expr: Expr::Postfix {
+                expr: expr.boxed(),
+                op: PostfixOp::Call(args).spanned(op_span),
+            },
+        }
+    }
+
+    fn typecheck_field_access(
+        &mut self,
+        expr: Spanned<TypedExpr>,
+        field_name: &Spanned<ast::Ident>,
+        op_span: Span,
+    ) -> TypedExpr {
+        self.diagnostics.add_error(Error::FeatureNotImplemented {
+            feature: "field access",
+            span: op_span,
+        });
+
+        TypedExpr {
+            ty: Type::Error.spanned(op_span),
+            expr: Expr::Postfix {
+                expr: expr.boxed(),
+                op: PostfixOp::FieldAccess(field_name.as_ref().map(Self::lower_ident))
+                    .spanned(op_span),
+            },
+        }
+    }
+
+    fn typecheck_match(
+        &mut self,
+        expr: Spanned<ast::Expr>,
+        arms: Spanned<Vec<Spanned<ast::MatchArm>>>,
+        expr_span: Span,
+    ) -> TypedExpr {
+        let expr = self.typecheck_expr(expr);
+
+        let result_expr_ty = self.engine.insert(TypeInfo::Unknown.spanned(expr_span));
+
+        let result_pattern_ty = self.engine.insert_type(expr.clone().map(|expr| expr.ty.0));
+
+        if arms.0.is_empty() {
+            todo!("match expression must have at least one arm");
+        }
+
+        let arms = arms.map(|arms| {
+            arms.into_iter()
+                .map(|arm| {
+                    arm.map(|arm| {
+                        self.variables.push_scope();
+
+                        if let ast::Pattern::Ident(ident) = &arm.pattern.0 {
+                            self.variables.insert(
+                                Self::lower_ident(&ident.0),
+                                self.engine
+                                    .insert_type(expr.0.ty.clone().map_span(|_| arm.expr.1)),
+                            );
+                        }
+
+                        let arm_expr = self.typecheck_expr(arm.expr);
+
+                        self.variables.pop_scope();
+
+                        let arm_ty = self.engine.insert_type(arm_expr.0.ty.clone());
+
+                        self.engine
+                            .unify(result_expr_ty, arm_ty)
+                            .unwrap_or_else(|err| {
+                                self.diagnostics.add_error(err);
+                            });
+
+                        let pattern = self.lower_pattern(arm.pattern, result_pattern_ty);
+
+                        MatchArm {
+                            pattern,
+                            expr: arm_expr,
+                        }
+                    })
+                })
+                .collect()
+        });
+
+        let result_ty = self
+            .engine
+            .reconstruct(result_expr_ty)
+            .unwrap_or_else(|err| {
+                self.diagnostics.add_error(err);
+                Type::Error.spanned(expr_span)
+            });
+
+        TypedExpr {
+            ty: result_ty,
+            expr: Expr::Match {
+                expr: expr.boxed(),
+                arms,
+            },
+        }
+    }
+
+    fn lower_pattern(
+        &mut self,
+        pattern: Spanned<ast::Pattern>,
+        result_pattern_ty: TypeId,
+    ) -> Spanned<Pattern> {
+        pattern.map_with_span(|pattern, pat_span| match pattern {
+            ast::Pattern::Wildcard => Pattern::Wildcard,
+            ast::Pattern::Ident(ident) => Pattern::Ident(ident.as_ref().map(Self::lower_ident)),
+            ast::Pattern::Int(value) => {
+                let int_ty = self
+                    .engine
+                    .insert(TypeInfo::Primitive(Primitive::Integer).spanned(pat_span));
+
+                self.engine
+                    .unify(result_pattern_ty, int_ty)
+                    .unwrap_or_else(|err| {
+                        self.diagnostics.add_error(err);
+                    });
+
+                Pattern::Int(value)
+            }
+            ast::Pattern::Float(value) => {
+                let float_ty = self
+                    .engine
+                    .insert(TypeInfo::Primitive(Primitive::Float).spanned(pat_span));
+
+                self.engine
+                    .unify(result_pattern_ty, float_ty)
+                    .unwrap_or_else(|err| {
+                        self.diagnostics.add_error(err);
+                    });
+
+                Pattern::Float(value)
+            }
+            ast::Pattern::Bool(value) => {
+                let bool_ty = self
+                    .engine
+                    .insert(TypeInfo::Primitive(Primitive::Boolean).spanned(pat_span));
+
+                self.engine
+                    .unify(result_pattern_ty, bool_ty)
+                    .unwrap_or_else(|err| {
+                        self.diagnostics.add_error(err);
+                    });
+
+                Pattern::Bool(value)
             }
         })
     }
@@ -652,4 +705,30 @@ pub enum TypeInfo {
         return_ty: TypeId,
     },
     UserDefined(Spur),
+}
+
+impl core::fmt::Display for TypeInfo {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Error => write!(f, "error"),
+            Self::Unknown => write!(f, "unknown"),
+            Self::Ref(id) => write!(f, "ref({})", id.0),
+            Self::Primitive(primitive) => write!(f, "{primitive}"),
+            Self::Function {
+                parameters,
+                return_ty,
+            } => write!(
+                f,
+                "({parameters}) -> {return_ty}",
+                parameters = parameters
+                    .0
+                    .iter()
+                    .map(|id| id.0.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                return_ty = return_ty.0,
+            ),
+            Self::UserDefined(name) => write!(f, "{}", RODEO.resolve(name)),
+        }
+    }
 }
