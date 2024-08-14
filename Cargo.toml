@@ -5,7 +5,7 @@ resolver = "2"
 [workspace.dependencies]
 camino = "1.1.7"
 chumsky = "1.0.0-alpha.7"
-clap = "4.5.14"
+clap = "4.5.15"
 codespan-reporting = "0.11.1"
 lasso = "0.7.2"
 once_cell = "1.19.0"
