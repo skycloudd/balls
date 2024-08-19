@@ -3,7 +3,7 @@ members = ["balls_driver", "balls_compiler"]
 resolver = "2"
 
 [workspace.dependencies]
-camino = "1.1.7"
+camino = "1.1.9"
 chumsky = "1.0.0-alpha.7"
 clap = "4.5.15"
 codespan-reporting = "0.11.1"
